@@ -65,8 +65,8 @@ Analyze the latest message in the context of the recent conversation. Return ONL
 {
   "deepDecode": "What the latest speaker is REALLY feeling beneath their words — the hidden needs, fears, or desires driving the message. 2-3 sentences in English.",
   "intentRestore": "Reframe what the OTHER person likely meant or intended from a charitable, empathetic perspective. 2-3 sentences in English.",
-  "adviceToJack": "Specific, actionable advice for Jack right now. 1-2 sentences in 中文.",
-  "adviceToCeleste": "Specific, actionable advice for Celeste right now. 1-2 sentences in Russian.",
+  "adviceToJack": "Specific, actionable advice for Jack right now. 1-2 sentences in English.",
+  "adviceToCeleste": "Specific, actionable advice for Celeste right now. 1-2 sentences in English.",
   "translations": {
     "zh": "Natural Chinese translation of the latest message (capture tone, not just literal meaning)",
     "en": "Natural English translation of the latest message",
