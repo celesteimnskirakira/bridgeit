@@ -67,11 +67,21 @@ Analyze the latest message in the context of the recent conversation. Return ONL
   "intentRestore": "Reframe what the OTHER person likely meant or intended from a charitable, empathetic perspective. 2-3 sentences in English.",
   "adviceToJack": "Specific, actionable advice for Jack right now. 1-2 sentences in English.",
   "adviceToCeleste": "Specific, actionable advice for Celeste right now. 1-2 sentences in English.",
+  "knowledgeBridge": null,
   "translations": {
-    "zh": "Natural Chinese translation of the latest message (capture tone, not just literal meaning)",
+    "zh": "Natural Chinese translation of the latest message",
     "en": "Natural English translation of the latest message",
     "ru": "Natural Russian translation of the latest message"
   }
+}
+
+The "knowledgeBridge" field is OPTIONAL. Set it to null when the conversation is purely emotional/logistical with no factual or scientific dimension. Only populate it when the conversation genuinely touches on a topic where shared understanding of facts, science, cultural norms, or common misconceptions could help both people have a more productive discussion.
+
+When you DO populate knowledgeBridge, use this structure:
+{
+  "topic": "A short label for the knowledge area, e.g. 'Composting & Biodegradability'",
+  "insight": "2-4 sentences in English. Do NOT lecture or list textbook facts. Instead: (1) Identify what factual assumptions each person might be working with, (2) Gently surface any common misconceptions relevant to their exchange, (3) Offer a nuance or lesser-known angle that could spark a richer discussion between them. Write as if you're a curious friend who happens to know about this topic — conversational, not encyclopedic.",
+  "discussionSpark": "A thought-provoking question they could explore together, framed to invite collaboration rather than debate. 1 sentence in English."
 }
 
 Rules:
@@ -79,7 +89,8 @@ Rules:
 - Focus on the emotional gap, not who is "right."
 - Translations should capture tone and nuance, not just literal meaning.
 - Consider cultural communication style differences between Russian and Chinese speakers.
-- If there's only one message so far, focus on reading the speaker's emotional state and setting a supportive tone.`;
+- If there's only one message so far, focus on reading the speaker's emotional state and setting a supportive tone.
+- For knowledgeBridge: resist the urge to include it on every message. Most casual conversation does not need it. Only surface it when there is a genuine factual dimension worth exploring together.`;
 
 // ─── Static Files ────────────────────────────────────────────
 app.use(express.static('public'));
