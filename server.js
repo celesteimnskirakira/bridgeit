@@ -137,7 +137,8 @@ io.on('connection', (socket) => {
       io.emit('ai-analysis', analysis);
     } catch (err) {
       console.error('AI error:', err.message);
-      io.emit('ai-error', 'AI analysis temporarily unavailable');
+      const detail = process.env.NODE_ENV === 'production' ? '' : ` (${err.message})`;
+      io.emit('ai-error', `AI analysis temporarily unavailable${detail}`);
     }
     io.emit('ai-thinking', false);
   });
@@ -183,7 +184,13 @@ function parseJSON(text) {
   let s = text.trim();
   const fenceMatch = s.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenceMatch) s = fenceMatch[1].trim();
-  return JSON.parse(s);
+  try {
+    return JSON.parse(s);
+  } catch (e) {
+    const jsonMatch = s.match(/\{[\s\S]*\}/);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]);
+    throw new Error(`Failed to parse AI response as JSON: ${s.slice(0, 200)}`);
+  }
 }
 
 server.listen(PORT, () => {
