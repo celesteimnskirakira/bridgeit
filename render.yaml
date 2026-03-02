@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: bridgeit
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: ROOM_PASSWORD
+        sync: false
+      - key: AI_MODEL
+        value: openai/gpt-4o-mini
