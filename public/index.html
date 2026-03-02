@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BridgeIt - AI Relationship Mediator</title>
+    <style>
+        :root {
+            --user-purple: #7B1FA2;
+            --user-purple-bg: #F3E5F5;
+            --jack-blue: #1976D2;
+            --jack-blue-bg: #E3F2FD;
+            --ai-white: #FFFFFF;
+            --bg-gray: #F5F7FA;
+            --text-main: #2C3E50;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', 'PingFang SC', -apple-system, sans-serif;
+            background-color: var(--bg-gray);
+            color: var(--text-main);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ===== Identity Modal ===== */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: linear-gradient(135deg, #7B1FA2 0%, #1976D2 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.4s;
+        }
+        .modal-overlay.hidden { opacity: 0; pointer-events: none; }
+        .modal-card {
+            background: white;
+            border-radius: 24px;
+            padding: 50px 40px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 400px; width: 90%;
+        }
+        .modal-card h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--user-purple), var(--jack-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        .modal-card .subtitle {
+            color: #888; font-size: 0.9rem; margin-bottom: 30px;
+        }
+        #password-group {
+            display: none;
+            margin-bottom: 20px;
+        }
+        #password-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #E0E0E0;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            outline: none;
+            text-align: center;
+            transition: border-color 0.2s;
+        }
+        #password-group input:focus { border-color: #7B1FA2; }
+        #auth-error {
+            display: none;
+            color: #F44336;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+        .modal-card .btn-group {
+            display: flex; gap: 15px; justify-content: center;
+        }
+        .modal-card button {
+            padding: 14px 36px;
+            border: none; border-radius: 12px;
+            font-size: 1rem; font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+            color: white;
+        }
+        .modal-card button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+        }
+        .btn-celeste { background: var(--user-purple); }
+        .btn-jack { background: var(--jack-blue); }
+
+        /* ===== Main App ===== */
+        #app { display: none; flex-direction: column; height: 100vh; }
+        #app.active { display: flex; }
+
+        header {
+            padding: 14px 20px;
+            background: white;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1rem;
+            border-bottom: 2px solid #EEE;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+        }
+        header .logo {
+            background: linear-gradient(135deg, var(--user-purple), var(--jack-blue));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #4CAF50;
+        }
+        .status-dot.offline { background: #F44336; }
+        .header-actions {
+            position: absolute; right: 16px;
+        }
+        .header-actions button {
+            background: none; border: 1px solid #DDD; border-radius: 8px;
+            padding: 4px 12px; font-size: 0.75rem; color: #999;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .header-actions button:hover { border-color: #F44336; color: #F44336; }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            padding: 12px;
+            gap: 12px;
+        }
+
+        .column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-radius: 15px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .col-header {
+            padding: 12px 15px;
+            text-align: center;
+            font-weight: 600;
+            color: white;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .content {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: rgba(255,255,255,0.5);
+        }
+        .content::-webkit-scrollbar { width: 4px; }
+        .content::-webkit-scrollbar-thumb { background: #ccc; border-radius: 2px; }
+
+        /* ===== Message Bubbles ===== */
+        .bubble {
+            padding: 12px 15px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            position: relative;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .bubble .time {
+            font-size: 0.7rem;
+            color: #999;
+            margin-top: 6px;
+        }
+
+        .translation {
+            font-size: 0.8rem;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(0,0,0,0.1);
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .col-user { border: 2px solid var(--user-purple); background: white; }
+        .col-user .col-header { background: var(--user-purple); }
+        .col-user .bubble { background: var(--user-purple-bg); border-left: 4px solid var(--user-purple); }
+
+        .col-jack { border: 2px solid var(--jack-blue); background: white; }
+        .col-jack .col-header { background: var(--jack-blue); }
+        .col-jack .bubble { background: var(--jack-blue-bg); border-right: 4px solid var(--jack-blue); }
+
+        .col-ai { border: 2px solid #DDD; background: var(--ai-white); }
+        .col-ai .col-header { background: #607D8B; }
+
+        /* ===== AI Analysis Cards ===== */
+        .ai-group {
+            margin-bottom: 20px;
+            animation: slideIn 0.4s ease;
+        }
+        .ai-analysis {
+            background: #FFF;
+            border: 1px solid #EEE;
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            font-size: 0.83rem;
+            line-height: 1.6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .ai-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #ECEFF1;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #455A64;
+        }
+
+        /* ===== Thinking Indicator ===== */
+        .thinking {
+            text-align: center;
+            padding: 15px;
+            color: #999;
+            font-size: 0.85rem;
+        }
+        .thinking-dots span {
+            display: inline-block;
+            width: 6px; height: 6px;
+            background: #999;
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: dot 1.4s infinite;
+        }
+        .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes dot {
+            0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #BBB;
+            font-size: 0.85rem;
+        }
+
+        /* ===== Footer Input ===== */
+        .footer {
+            height: 60px;
+            background: white;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            gap: 10px;
+            border-top: 1px solid #EEE;
+        }
+        .footer .identity-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 12px;
+            color: white;
+            white-space: nowrap;
+        }
+        .footer input {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 20px;
+            border: 1px solid #DDD;
+            outline: none;
+            font-size: 0.9rem;
+            transition: border-color 0.2s;
+        }
+        .footer input:focus { border-color: #999; }
+        .footer button {
+            border: none;
+            padding: 10px 22px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            font-size: 0.9rem;
+            transition: opacity 0.2s;
+        }
+        .footer button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .footer button:hover:not(:disabled) { opacity: 0.85; }
+
+        @media (max-width: 768px) {
+            .container { flex-direction: column; padding: 8px; gap: 8px; }
+            .column { max-height: 35vh; }
+            .modal-card button { padding: 12px 24px; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Identity Selection -->
+<div class="modal-overlay" id="identity-modal">
+    <div class="modal-card">
+        <h1>BridgeIt</h1>
+        <p class="subtitle">AI Relationship Mediator</p>
+        <div id="password-group">
+            <input type="password" id="room-password" placeholder="Enter room password" autocomplete="off">
+        </div>
+        <div id="auth-error"></div>
+        <div class="btn-group">
+            <button class="btn-celeste" onclick="selectIdentity('celeste')">I'm Celeste</button>
+            <button class="btn-jack" onclick="selectIdentity('jack')">I'm Jack</button>
+        </div>
+    </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+    <header style="position: relative;">
+        <span class="logo">BridgeIt</span>
+        <span class="status-dot" id="status-dot"></span>
+        <div class="header-actions">
+            <button onclick="clearHistory()">Clear</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="column col-user">
+            <div class="col-header">Celeste</div>
+            <div class="content" id="celeste-messages">
+                <div class="empty-state" id="celeste-empty">No messages yet</div>
+            </div>
+        </div>
+
+        <div class="column col-ai">
+            <div class="col-header">AI MEDIATOR</div>
+            <div class="content" id="ai-content">
+                <div class="empty-state" id="ai-empty">AI analysis will appear here after messages are exchanged</div>
+            </div>
+        </div>
+
+        <div class="column col-jack">
+            <div class="col-header">Jack</div>
+            <div class="content" id="jack-messages">
+                <div class="empty-state" id="jack-empty">No messages yet</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span class="identity-badge" id="identity-badge"></span>
+        <input type="text" id="msg-input" placeholder="Type your message... (CN / EN / RU)" autocomplete="off">
+        <button id="send-btn">Send</button>
+    </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let myIdentity = null;
+let needsPassword = false;
+
+// ─── Auth Flow ───────────────────────────────────────────────
+socket.on('auth-required', (required) => {
+    needsPassword = required;
+    if (required) {
+        document.getElementById('password-group').style.display = 'block';
+    }
+});
+
+function selectIdentity(identity) {
+    myIdentity = identity;
+    const errorEl = document.getElementById('auth-error');
+    errorEl.style.display = 'none';
+
+    if (needsPassword) {
+        const pw = document.getElementById('room-password').value;
+        if (!pw) {
+            errorEl.textContent = 'Please enter the room password';
+            errorEl.style.display = 'block';
+            return;
+        }
+        socket.emit('authenticate', pw, (res) => {
+            if (res.success) {
+                enterApp(identity);
+            } else {
+                errorEl.textContent = res.error || 'Authentication failed';
+                errorEl.style.display = 'block';
+            }
+        });
+    } else {
+        enterApp(identity);
+    }
+}
+
+function enterApp(identity) {
+    const modal = document.getElementById('identity-modal');
+    modal.classList.add('hidden');
+    setTimeout(() => modal.style.display = 'none', 400);
+
+    document.getElementById('app').classList.add('active');
+
+    const badge = document.getElementById('identity-badge');
+    const sendBtn = document.getElementById('send-btn');
+    if (identity === 'celeste') {
+        badge.textContent = 'Celeste';
+        badge.style.background = 'var(--user-purple)';
+        sendBtn.style.background = 'var(--user-purple)';
+    } else {
+        badge.textContent = 'Jack';
+        badge.style.background = 'var(--jack-blue)';
+        sendBtn.style.background = 'var(--jack-blue)';
+    }
+    document.getElementById('msg-input').focus();
+}
+
+// ─── Socket Events ───────────────────────────────────────────
+socket.on('connect', () => {
+    document.getElementById('status-dot').classList.remove('offline');
+});
+socket.on('disconnect', () => {
+    document.getElementById('status-dot').classList.add('offline');
+});
+
+socket.on('history', (messages) => {
+    messages.forEach((msg) => renderMessage(msg, false));
+});
+
+socket.on('new-message', (msg) => {
+    renderMessage(msg, true);
+});
+
+socket.on('ai-thinking', (isThinking) => {
+    const container = document.getElementById('ai-content');
+    let indicator = document.getElementById('thinking-indicator');
+    if (isThinking) {
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'thinking-indicator';
+            indicator.className = 'thinking';
+            indicator.innerHTML = 'Analyzing<div class="thinking-dots"><span></span><span></span><span></span></div>';
+            container.appendChild(indicator);
+            container.scrollTop = container.scrollHeight;
+        }
+    } else if (indicator) {
+        indicator.remove();
+    }
+});
+
+socket.on('ai-analysis', (analysis) => {
+    renderAIAnalysis(analysis);
+});
+
+socket.on('ai-error', (errMsg) => {
+    const container = document.getElementById('ai-content');
+    hideEmpty('ai');
+    const div = document.createElement('div');
+    div.className = 'ai-analysis';
+    div.style.borderLeft = '4px solid #F44336';
+    div.innerHTML = `<span class="ai-tag">Error</span><br>${escapeHtml(errMsg)}`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+});
+
+socket.on('history-cleared', () => {
+    document.getElementById('celeste-messages').innerHTML = '<div class="empty-state" id="celeste-empty">No messages yet</div>';
+    document.getElementById('jack-messages').innerHTML = '<div class="empty-state" id="jack-empty">No messages yet</div>';
+    document.getElementById('ai-content').innerHTML = '<div class="empty-state" id="ai-empty">AI analysis will appear here after messages are exchanged</div>';
+});
+
+// ─── Send Message ────────────────────────────────────────────
+function sendMessage() {
+    const input = document.getElementById('msg-input');
+    const text = input.value.trim();
+    if (!text || !myIdentity) return;
+
+    socket.emit('send-message', { user: myIdentity, text });
+    input.value = '';
+    input.focus();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('msg-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+    document.getElementById('room-password').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') e.preventDefault();
+    });
+});
+
+// ─── Clear History ───────────────────────────────────────────
+function clearHistory() {
+    if (!confirm('Clear all chat history?')) return;
+    const pw = needsPassword ? prompt('Enter room password to confirm:') : '';
+    socket.emit('clear-history', pw, (res) => {
+        if (!res?.success) alert('Failed to clear history');
+    });
+}
+
+// ─── Rendering ───────────────────────────────────────────────
+function hideEmpty(column) {
+    const el = document.getElementById(column + '-empty');
+    if (el) el.style.display = 'none';
+}
+
+function renderMessage(msg, animate) {
+    const columnId = msg.user === 'celeste' ? 'celeste-messages' : 'jack-messages';
+    const container = document.getElementById(columnId);
+    hideEmpty(msg.user === 'celeste' ? 'celeste' : 'jack');
+
+    if (document.getElementById('msg-' + msg.id)) return;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (!animate) bubble.style.animation = 'none';
+    bubble.id = 'msg-' + msg.id;
+
+    const time = new Date(msg.timestamp);
+    const timeStr = time.getHours().toString().padStart(2, '0') + ':' + time.getMinutes().toString().padStart(2, '0');
+
+    bubble.innerHTML = `<div class="msg-text">${escapeHtml(msg.text)}</div><div class="time">${timeStr}</div>`;
+    container.appendChild(bubble);
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderAIAnalysis(analysis) {
+    const container = document.getElementById('ai-content');
+    hideEmpty('ai');
+
+    const msgBubble = document.getElementById('msg-' + analysis.messageId);
+    if (msgBubble && analysis.translations) {
+        const existing = msgBubble.querySelector('.translation');
+        if (!existing) {
+            const transDiv = document.createElement('div');
+            transDiv.className = 'translation';
+            const lines = [];
+            if (analysis.translations.zh) lines.push('中: ' + escapeHtml(analysis.translations.zh));
+            if (analysis.translations.en) lines.push('EN: ' + escapeHtml(analysis.translations.en));
+            if (analysis.translations.ru) lines.push('RU: ' + escapeHtml(analysis.translations.ru));
+            transDiv.innerHTML = lines.join('<br>');
+            const timeEl = msgBubble.querySelector('.time');
+            timeEl.parentNode.insertBefore(transDiv, timeEl);
+        }
+    }
+
+    const group = document.createElement('div');
+    group.className = 'ai-group';
+
+    if (analysis.deepDecode) {
+        const speakerName = analysis.speaker === 'celeste' ? 'Celeste' : 'Jack';
+        group.innerHTML += `
+            <div class="ai-analysis">
+                <span class="ai-tag">Deep Decode</span>
+                <br><b>${speakerName}'s state:</b> ${escapeHtml(analysis.deepDecode)}
+            </div>`;
+    }
+
+    if (analysis.intentRestore) {
+        const otherColor = analysis.speaker === 'celeste' ? 'var(--jack-blue)' : 'var(--user-purple)';
+        const otherName = analysis.speaker === 'celeste' ? 'Jack' : 'Celeste';
+        group.innerHTML += `
+            <div class="ai-analysis" style="border-left: 4px solid ${otherColor};">
+                <span class="ai-tag">Intent Restore</span>
+                <br><b>${otherName}'s perspective:</b> ${escapeHtml(analysis.intentRestore)}
+            </div>`;
+    }
+
+    if (analysis.adviceToJack || analysis.adviceToCeleste) {
+        let adviceHtml = '';
+        if (analysis.adviceToJack) adviceHtml += `<b>To Jack:</b> ${escapeHtml(analysis.adviceToJack)}<br>`;
+        if (analysis.adviceToCeleste) adviceHtml += `<b>To Celeste:</b> ${escapeHtml(analysis.adviceToCeleste)}`;
+        group.innerHTML += `
+            <div class="ai-analysis" style="background: #FFF9C4; border-color: #FBC02D;">
+                <span class="ai-tag">Mediator's Advice</span>
+                <br>${adviceHtml}
+            </div>`;
+    }
+
+    container.appendChild(group);
+    container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+</body>
+</html>
