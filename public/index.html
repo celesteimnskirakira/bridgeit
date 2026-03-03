@@ -262,31 +262,34 @@
         .ask-bar {
             display: flex;
             align-items: center;
-            padding: 8px 10px;
-            gap: 6px;
-            border-top: 1px solid #EEE;
-            background: #FAFAFA;
+            padding: 10px 12px;
+            gap: 8px;
+            border-top: 2px solid #B2DFDB;
+            background: #E0F2F1;
+            flex-shrink: 0;
         }
         .ask-bar input {
             flex: 1;
-            padding: 7px 12px;
-            border: 1px solid #DDD;
+            padding: 8px 14px;
+            border: 1.5px solid #B2DFDB;
             border-radius: 20px;
-            font-size: 0.82rem;
+            font-size: 0.85rem;
             outline: none;
             background: white;
         }
-        .ask-bar input:focus { border-color: #26A69A; }
+        .ask-bar input::placeholder { color: #80CBC4; }
+        .ask-bar input:focus { border-color: #26A69A; box-shadow: 0 0 0 2px rgba(38,166,154,0.15); }
         .ask-bar button {
-            width: 32px;
-            height: 32px;
+            width: 34px;
+            height: 34px;
             border: none;
             border-radius: 50%;
             background: #26A69A;
             color: white;
-            font-size: 1rem;
+            font-size: 1.1rem;
             font-weight: 700;
             cursor: pointer;
+            flex-shrink: 0;
         }
         .ask-bar button:hover { background: #00897B; }
 
@@ -439,7 +442,7 @@
                 <div class="empty-state" id="ai-empty">AI analysis will appear here after messages are exchanged</div>
             </div>
             <div class="ask-bar">
-                <input type="text" id="ask-input" placeholder="Ask a question..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();askQuestion();}">
+                <input type="text" id="ask-input" placeholder="Ask any question for facts..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();askQuestion();}">
                 <button onclick="askQuestion()">?</button>
             </div>
         </div>

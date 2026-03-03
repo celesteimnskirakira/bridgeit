@@ -262,6 +262,9 @@ Rules:
         temperature: 0.5,
       });
       const answer = parseJSON(resp.choices[0].message.content);
+      if (Array.isArray(answer.facts)) {
+        answer.facts = answer.facts.slice(0, 2);
+      }
       socket.emit('knowledge-answer', answer);
     } catch (err) {
       console.error('Knowledge question error:', err.message);
@@ -301,6 +304,17 @@ async function getAIAnalysis(latestMessage) {
   if (!speakers.has('jack')) {
     analysis.insightForCeleste = null;
     analysis.adviceToCeleste = null;
+  }
+
+  if (analysis.knowledgeBridge && Array.isArray(analysis.knowledgeBridge.facts)) {
+    analysis.knowledgeBridge.facts = analysis.knowledgeBridge.facts.slice(0, 2);
+  }
+
+  if (Array.isArray(analysis.adviceToJack)) {
+    analysis.adviceToJack = analysis.adviceToJack.slice(0, 2);
+  }
+  if (Array.isArray(analysis.adviceToCeleste)) {
+    analysis.adviceToCeleste = analysis.adviceToCeleste.slice(0, 2);
   }
 
   return analysis;
