@@ -138,19 +138,26 @@ Analyze the latest message in the context of the recent conversation. Return ONL
   }
 }
 
-The "knowledgeBridge" field is OPTIONAL. Set it to null when the conversation is purely logistical with no topical content. Populate it whenever the conversation touches on ANY topic with a factual, scientific, cultural, psychological, environmental, or health-related dimension.
+knowledgeBridge: ALWAYS provide it by DEFAULT. The ONLY exception to set it to null is pure small talk with zero topical content (e.g. "hi", "good morning", "ok", "on my way"). Everything else gets a knowledgeBridge — including but not limited to:
+- Emotions, arguments, stress → psychology research (attachment theory, conflict resolution studies, emotional regulation, cognitive biases)
+- Health, sleep, food, exercise → medical/nutrition data
+- Environment, recycling, nature → environmental science
+- Money, work, career → economics, workplace studies
+- Parenting, relationships → developmental psychology, sociology
+- Culture, language, traditions → anthropology, cross-cultural studies
+- Technology, science, any factual topic → relevant research
 
-When you DO populate knowledgeBridge, use this structure:
+When you populate knowledgeBridge, use this structure:
 {
-  "topic": "A short label, e.g. 'Seed Degradation in Soil'",
-  "facts": ["1. Specific data point or research finding with numbers/timeframes, e.g. 'Fruit peels decompose in 2-5 weeks in active compost, but take 6+ months in landfill (EPA, 2022)'", "2. Another concrete fact or statistic from research", "3. A third data point if relevant"]
+  "topic": "A short label, e.g. 'Emotional Flooding in Conflict'",
+  "facts": ["1. Concrete fact with data/numbers/source", "2. Another specific finding", "3. Third data point if relevant"]
 }
 
 CRITICAL rules for knowledgeBridge.facts:
-- Each point MUST contain specific numbers, timeframes, percentages, or verifiable data — NOT opinions or vague statements.
-- Cite sources where possible (research institutions, government agencies, published studies).
-- Focus on facts directly relevant to what they are discussing.
-- 2-3 points maximum, each 1 sentence.
+- Each point MUST contain specific numbers, timeframes, percentages, or verifiable research findings.
+- Cite sources (research institutions, named psychologists/scientists, published studies, government agencies).
+- For emotional topics: provide psychology/neuroscience research (e.g. "Gottman's research shows couples need a 5:1 ratio of positive to negative interactions to maintain relationship stability").
+- 2-3 points, each 1 sentence, numbered with 1. 2. 3.
 
 Rules:
 - Never take sides. Be warm but honest.
@@ -160,7 +167,7 @@ Rules:
 - IMPORTANT: Only generate insight and advice about a person who has ACTUALLY spoken in the conversation. If Jack has not sent any message yet, set insightForCeleste to null and adviceToCeleste to null (there is nothing about Jack to analyze). If Celeste has not sent any message yet, set insightForJack to null and adviceToJack to null. Never fabricate insights about someone who hasn't spoken.
 - insightForJack and insightForCeleste must each be exactly 1 sentence (when not null). Be direct and specific.
 - adviceToJack and adviceToCeleste must each have exactly 2 points, each 1 sentence (when not null).
-- For knowledgeBridge: include it whenever the conversation touches on ANY topic with a factual dimension. Provide real data, not opinions. Skip it ONLY for purely logistical messages or brief emotional exchanges with no topical content.`;
+- For knowledgeBridge: ALWAYS include it unless the message is pure small talk ("hi", "ok", "on my way"). Even emotional conversations should get psychology/neuroscience research. When in doubt, include it.`;
 
 // ─── Static Files ────────────────────────────────────────────
 app.use(express.static('public'));
