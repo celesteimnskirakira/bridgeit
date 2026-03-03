@@ -568,22 +568,14 @@ function renderAIAnalysis(analysis, animate) {
     group.className = 'ai-group';
     if (!animate) group.style.animation = 'none';
 
-    if (analysis.deepDecode) {
-        const speakerName = analysis.speaker === 'celeste' ? 'Celeste' : 'Jack';
-        group.innerHTML += `
-            <div class="ai-analysis">
-                <span class="ai-tag">Deep Decode</span>
-                <br><b>${speakerName}'s state:</b> ${escapeHtml(analysis.deepDecode)}
-            </div>`;
-    }
-
-    if (analysis.intentRestore) {
-        const otherColor = analysis.speaker === 'celeste' ? 'var(--jack-blue)' : 'var(--user-purple)';
-        const otherName = analysis.speaker === 'celeste' ? 'Jack' : 'Celeste';
+    const insight = myIdentity === 'jack' ? analysis.insightForJack : analysis.insightForCeleste;
+    if (insight) {
+        const otherName = myIdentity === 'jack' ? 'Celeste' : 'Jack';
+        const otherColor = myIdentity === 'jack' ? 'var(--user-purple)' : 'var(--jack-blue)';
         group.innerHTML += `
             <div class="ai-analysis" style="border-left: 4px solid ${otherColor};">
-                <span class="ai-tag">Intent Restore</span>
-                <br><b>${otherName}'s perspective:</b> ${escapeHtml(analysis.intentRestore)}
+                <span class="ai-tag">Understanding ${otherName}</span>
+                <br>${escapeHtml(insight)}
             </div>`;
     }
 

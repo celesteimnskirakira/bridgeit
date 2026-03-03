@@ -126,8 +126,8 @@ Your job: decode the emotions beneath words, restore charitable intent, and brid
 Analyze the latest message in the context of the recent conversation. Return ONLY valid JSON with NO markdown fences:
 
 {
-  "deepDecode": "What the latest speaker is REALLY feeling beneath their words — the hidden needs, fears, or desires driving the message. 2-3 sentences in English.",
-  "intentRestore": "Reframe what the OTHER person likely meant or intended from a charitable, empathetic perspective. 2-3 sentences in English.",
+  "insightForJack": "Help Jack understand Celeste right now: her emotional state, what she really means, and what she needs. Max 3 concise sentences in English. Write as if speaking directly to Jack.",
+  "insightForCeleste": "Help Celeste understand Jack right now: his emotional state, what he really means, and what he needs. Max 3 concise sentences in English. Write as if speaking directly to Celeste.",
   "adviceToJack": "Specific, actionable advice for Jack right now. 1-2 sentences in English.",
   "adviceToCeleste": "Specific, actionable advice for Celeste right now. 1-2 sentences in English.",
   "knowledgeBridge": null,
