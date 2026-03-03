@@ -11,3 +11,5 @@ services:
         sync: false
       - key: AI_MODEL
         value: openai/gpt-4o-mini
+      - key: MONGODB_URI
+        sync: false

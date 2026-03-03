@@ -13,6 +13,7 @@ if (!process.env.OPENROUTER_API_KEY) {
 const PORT = process.env.PORT || 3000;
 const AI_MODEL = process.env.AI_MODEL || 'openai/gpt-4o-mini';
 const ROOM_PASSWORD = process.env.ROOM_PASSWORD || '';
+const MONGODB_URI = process.env.MONGODB_URI || '';
 
 const openrouter = new OpenAI({
   baseURL: 'https://openrouter.ai/api/v1',
@@ -23,14 +24,39 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// ─── Persistence ─────────────────────────────────────────────
+// ─── Database / Persistence ─────────────────────────────────
+let useDB = false;
+let messagesCollection = null;
+
 const DATA_DIR = path.join(__dirname, 'data');
 const HISTORY_FILE = path.join(DATA_DIR, 'chat-history.json');
 
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+let chatHistory = [];
+let messageIdCounter = 0;
 
-function loadHistory() {
+async function initDB() {
+  if (!MONGODB_URI) return;
   try {
+    const { MongoClient } = require('mongodb');
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    const db = client.db('bridgeit');
+    messagesCollection = db.collection('messages');
+    await messagesCollection.createIndex({ id: 1 }, { unique: true });
+    useDB = true;
+    console.log('Connected to MongoDB Atlas');
+  } catch (err) {
+    console.error('MongoDB connection failed, falling back to file storage:', err.message);
+  }
+}
+
+async function loadHistory() {
+  if (useDB) {
+    const docs = await messagesCollection.find({}).sort({ id: 1 }).toArray();
+    return docs.map(({ _id, ...rest }) => rest);
+  }
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     if (fs.existsSync(HISTORY_FILE)) {
       return JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf-8'));
     }
@@ -40,18 +66,55 @@ function loadHistory() {
   return [];
 }
 
-function saveHistory() {
+function saveHistoryFile() {
   try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(HISTORY_FILE, JSON.stringify(chatHistory, null, 2));
   } catch (e) {
     console.error('Failed to save chat history:', e.message);
   }
 }
 
-const chatHistory = loadHistory();
-let messageIdCounter = chatHistory.length > 0
-  ? Math.max(...chatHistory.map((m) => m.id || 0))
-  : 0;
+async function saveMessage(message) {
+  chatHistory.push(message);
+  if (useDB) {
+    try {
+      await messagesCollection.insertOne({ ...message });
+    } catch (e) {
+      console.error('DB save error:', e.message);
+    }
+  } else {
+    saveHistoryFile();
+  }
+}
+
+async function saveAnalysis(messageId, analysis) {
+  const msg = chatHistory.find((m) => m.id === messageId);
+  if (msg) msg.analysis = analysis;
+  if (useDB) {
+    try {
+      await messagesCollection.updateOne({ id: messageId }, { $set: { analysis } });
+    } catch (e) {
+      console.error('DB update error:', e.message);
+    }
+  } else {
+    saveHistoryFile();
+  }
+}
+
+async function clearAllHistory() {
+  chatHistory.length = 0;
+  messageIdCounter = 0;
+  if (useDB) {
+    try {
+      await messagesCollection.deleteMany({});
+    } catch (e) {
+      console.error('DB clear error:', e.message);
+    }
+  } else {
+    saveHistoryFile();
+  }
+}
 
 // ─── AI Prompt ───────────────────────────────────────────────
 const SYSTEM_PROMPT = `You are BridgeIt, an AI relationship mediator for a couple: Celeste and Jack.
@@ -125,8 +188,7 @@ io.on('connection', (socket) => {
       text,
       timestamp: Date.now(),
     };
-    chatHistory.push(message);
-    saveHistory();
+    await saveMessage(message);
     io.emit('new-message', message);
 
     io.emit('ai-thinking', true);
@@ -134,6 +196,7 @@ io.on('connection', (socket) => {
       const analysis = await getAIAnalysis(message);
       analysis.messageId = message.id;
       analysis.speaker = message.user;
+      await saveAnalysis(message.id, analysis);
       io.emit('ai-analysis', analysis);
     } catch (err) {
       console.error('AI error:', err.message);
@@ -143,14 +206,12 @@ io.on('connection', (socket) => {
     io.emit('ai-thinking', false);
   });
 
-  socket.on('clear-history', (password, cb) => {
+  socket.on('clear-history', async (password, cb) => {
     if (ROOM_PASSWORD && password !== ROOM_PASSWORD) {
       cb?.({ success: false });
       return;
     }
-    chatHistory.length = 0;
-    messageIdCounter = 0;
-    saveHistory();
+    await clearAllHistory();
     io.emit('history-cleared');
     cb?.({ success: true });
   });
@@ -193,9 +254,23 @@ function parseJSON(text) {
   }
 }
 
-server.listen(PORT, () => {
-  console.log(`BridgeIt running at http://localhost:${PORT}`);
-  if (ROOM_PASSWORD) console.log('Room is password-protected');
-  console.log(`Model: ${AI_MODEL}`);
-  console.log(`Chat history: ${chatHistory.length} messages loaded`);
+// ─── Start ───────────────────────────────────────────────────
+async function main() {
+  await initDB();
+  chatHistory = await loadHistory();
+  messageIdCounter =
+    chatHistory.length > 0 ? Math.max(...chatHistory.map((m) => m.id || 0)) : 0;
+
+  server.listen(PORT, () => {
+    console.log(`BridgeIt running at http://localhost:${PORT}`);
+    if (ROOM_PASSWORD) console.log('Room is password-protected');
+    console.log(`Model: ${AI_MODEL}`);
+    console.log(`Storage: ${useDB ? 'MongoDB Atlas' : 'Local file'}`);
+    console.log(`Chat history: ${chatHistory.length} messages loaded`);
+  });
+}
+
+main().catch((err) => {
+  console.error('Failed to start:', err);
+  process.exit(1);
 });

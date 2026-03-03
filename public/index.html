@@ -359,8 +359,8 @@
 
     <div class="footer">
         <span class="identity-badge" id="identity-badge"></span>
-        <input type="text" id="msg-input" placeholder="Type your message... (CN / EN / RU)" autocomplete="off">
-        <button id="send-btn">Send</button>
+        <input type="text" id="msg-input" placeholder="Type your message... (CN / EN / RU)" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}">
+        <button id="send-btn" onclick="sendMessage()">Send</button>
     </div>
 </div>
 
@@ -433,7 +433,16 @@ socket.on('disconnect', () => {
 });
 
 socket.on('history', (messages) => {
-    messages.forEach((msg) => renderMessage(msg, false));
+    messages.forEach((msg) => {
+        renderMessage(msg, false);
+        if (msg.analysis) {
+            renderAIAnalysis(msg.analysis, false);
+        }
+    });
+    ['celeste-messages', 'jack-messages', 'ai-content'].forEach((id) => {
+        const el = document.getElementById(id);
+        el.scrollTop = el.scrollHeight;
+    });
 });
 
 socket.on('new-message', (msg) => {
@@ -458,7 +467,7 @@ socket.on('ai-thinking', (isThinking) => {
 });
 
 socket.on('ai-analysis', (analysis) => {
-    renderAIAnalysis(analysis);
+    renderAIAnalysis(analysis, true);
 });
 
 socket.on('ai-error', (errMsg) => {
@@ -490,16 +499,12 @@ function sendMessage() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('msg-input').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    document.getElementById('send-btn').addEventListener('click', sendMessage);
-
     document.getElementById('room-password').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') e.preventDefault();
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const btns = document.querySelectorAll('.btn-group button');
+            if (btns.length) btns[0].click();
+        }
     });
 });
 
@@ -538,7 +543,7 @@ function renderMessage(msg, animate) {
     container.scrollTop = container.scrollHeight;
 }
 
-function renderAIAnalysis(analysis) {
+function renderAIAnalysis(analysis, animate) {
     const container = document.getElementById('ai-content');
     hideEmpty('ai');
 
@@ -548,6 +553,7 @@ function renderAIAnalysis(analysis) {
         if (!existing) {
             const transDiv = document.createElement('div');
             transDiv.className = 'translation';
+            if (!animate) transDiv.style.animation = 'none';
             const lines = [];
             if (analysis.translations.zh) lines.push('中: ' + escapeHtml(analysis.translations.zh));
             if (analysis.translations.en) lines.push('EN: ' + escapeHtml(analysis.translations.en));
@@ -560,6 +566,7 @@ function renderAIAnalysis(analysis) {
 
     const group = document.createElement('div');
     group.className = 'ai-group';
+    if (!animate) group.style.animation = 'none';
 
     if (analysis.deepDecode) {
         const speakerName = analysis.speaker === 'celeste' ? 'Celeste' : 'Jack';
