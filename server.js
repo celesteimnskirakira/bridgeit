@@ -333,6 +333,20 @@ io.on('connection', (socket) => {
     cb?.({ success: true });
   });
 
+  socket.on('rename-conversation', async ({ convId, title }, cb) => {
+    if (!authenticated || !convId || !title) return;
+    const conv = conversations.find((c) => c.id === convId);
+    if (!conv) return cb?.({ success: false });
+    conv.title = title.slice(0, 50);
+    if (useDB) {
+      await conversationsCollection.updateOne({ id: convId }, { $set: { title: conv.title } });
+    } else {
+      saveFileData();
+    }
+    io.emit('conversation-updated', { id: convId, title: conv.title });
+    cb?.({ success: true });
+  });
+
   socket.on('send-message', async ({ user, text, conversationId }) => {
     if (!authenticated || !conversationId) return;
 
