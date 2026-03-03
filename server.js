@@ -27,12 +27,18 @@ const io = new Server(server);
 // ─── Database / Persistence ─────────────────────────────────
 let useDB = false;
 let messagesCollection = null;
+let conversationsCollection = null;
 
 const DATA_DIR = path.join(__dirname, 'data');
-const HISTORY_FILE = path.join(DATA_DIR, 'chat-history.json');
+const DATA_FILE = path.join(DATA_DIR, 'bridgeit-data.json');
 
-let chatHistory = [];
+let conversations = [];
+let fileMessages = [];
 let messageIdCounter = 0;
+
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
 
 async function initDB() {
   if (!MONGODB_URI) return;
@@ -42,7 +48,10 @@ async function initDB() {
     await client.connect();
     const db = client.db('bridgeit');
     messagesCollection = db.collection('messages');
+    conversationsCollection = db.collection('conversations');
     await messagesCollection.createIndex({ id: 1 }, { unique: true });
+    await messagesCollection.createIndex({ conversationId: 1 });
+    await conversationsCollection.createIndex({ id: 1 }, { unique: true });
     useDB = true;
     console.log('Connected to MongoDB Atlas');
   } catch (err) {
@@ -50,47 +59,146 @@ async function initDB() {
   }
 }
 
-async function loadHistory() {
-  if (useDB) {
-    const docs = await messagesCollection.find({}).sort({ id: 1 }).toArray();
-    return docs.map(({ _id, ...rest }) => rest);
-  }
+// ─── File Storage ────────────────────────────────────────────
+function loadFileData() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (fs.existsSync(HISTORY_FILE)) {
-      return JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf-8'));
+    if (fs.existsSync(DATA_FILE)) {
+      return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+    }
+    const OLD_FILE = path.join(DATA_DIR, 'chat-history.json');
+    if (fs.existsSync(OLD_FILE)) {
+      const oldMsgs = JSON.parse(fs.readFileSync(OLD_FILE, 'utf-8'));
+      if (oldMsgs.length > 0) {
+        const conv = {
+          id: generateId(),
+          title: (oldMsgs[0].text || 'Chat').slice(0, 30),
+          createdAt: oldMsgs[0].timestamp || Date.now(),
+          lastMessageAt: oldMsgs[oldMsgs.length - 1].timestamp || Date.now(),
+        };
+        oldMsgs.forEach((m) => (m.conversationId = conv.id));
+        return { conversations: [conv], messages: oldMsgs };
+      }
     }
   } catch (e) {
-    console.error('Failed to load chat history:', e.message);
+    console.error('Failed to load data:', e.message);
   }
-  return [];
+  return { conversations: [], messages: [] };
 }
 
-function saveHistoryFile() {
+function saveFileData() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(HISTORY_FILE, JSON.stringify(chatHistory, null, 2));
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify({ conversations, messages: fileMessages }, null, 2)
+    );
   } catch (e) {
-    console.error('Failed to save chat history:', e.message);
+    console.error('Failed to save data:', e.message);
   }
+}
+
+// ─── Migration (DB mode) ────────────────────────────────────
+async function migrateOldData() {
+  if (!useDB) return;
+  const orphans = await messagesCollection
+    .find({ conversationId: { $exists: false } })
+    .sort({ id: 1 })
+    .toArray();
+  if (orphans.length === 0) return;
+
+  const conv = {
+    id: generateId(),
+    title: (orphans[0].text || 'Chat').slice(0, 30),
+    createdAt: orphans[0].timestamp || Date.now(),
+    lastMessageAt: orphans[orphans.length - 1].timestamp || Date.now(),
+  };
+  await conversationsCollection.insertOne({ ...conv });
+  await messagesCollection.updateMany(
+    { conversationId: { $exists: false } },
+    { $set: { conversationId: conv.id } }
+  );
+  console.log(`Migrated ${orphans.length} messages to conversation "${conv.title}"`);
+}
+
+// ─── Conversation Operations ─────────────────────────────────
+async function loadConversations() {
+  if (useDB) {
+    const docs = await conversationsCollection
+      .find({})
+      .sort({ lastMessageAt: -1 })
+      .toArray();
+    return docs.map(({ _id, ...rest }) => rest);
+  }
+  const data = loadFileData();
+  fileMessages = data.messages || [];
+  return (data.conversations || []).sort((a, b) => (b.lastMessageAt || 0) - (a.lastMessageAt || 0));
+}
+
+async function createConversation(title) {
+  const conv = {
+    id: generateId(),
+    title: title || 'New Chat',
+    createdAt: Date.now(),
+    lastMessageAt: Date.now(),
+  };
+  conversations.unshift(conv);
+  if (useDB) {
+    await conversationsCollection.insertOne({ ...conv });
+  } else {
+    saveFileData();
+  }
+  return conv;
+}
+
+async function deleteConversation(convId) {
+  conversations = conversations.filter((c) => c.id !== convId);
+  if (useDB) {
+    await conversationsCollection.deleteOne({ id: convId });
+    await messagesCollection.deleteMany({ conversationId: convId });
+  } else {
+    fileMessages = fileMessages.filter((m) => m.conversationId !== convId);
+    saveFileData();
+  }
+}
+
+// ─── Message Operations ──────────────────────────────────────
+async function loadMessages(convId) {
+  if (useDB) {
+    const docs = await messagesCollection
+      .find({ conversationId: convId })
+      .sort({ id: 1 })
+      .toArray();
+    return docs.map(({ _id, ...rest }) => rest);
+  }
+  return fileMessages.filter((m) => m.conversationId === convId);
 }
 
 async function saveMessage(message) {
-  chatHistory.push(message);
+  const convIdx = conversations.findIndex((c) => c.id === message.conversationId);
+  if (convIdx >= 0) {
+    conversations[convIdx].lastMessageAt = message.timestamp;
+    const [conv] = conversations.splice(convIdx, 1);
+    conversations.unshift(conv);
+  }
+
   if (useDB) {
     try {
       await messagesCollection.insertOne({ ...message });
+      await conversationsCollection.updateOne(
+        { id: message.conversationId },
+        { $set: { lastMessageAt: message.timestamp } }
+      );
     } catch (e) {
       console.error('DB save error:', e.message);
     }
   } else {
-    saveHistoryFile();
+    fileMessages.push(message);
+    saveFileData();
   }
 }
 
 async function saveAnalysis(messageId, analysis) {
-  const msg = chatHistory.find((m) => m.id === messageId);
-  if (msg) msg.analysis = analysis;
   if (useDB) {
     try {
       await messagesCollection.updateOne({ id: messageId }, { $set: { analysis } });
@@ -98,22 +206,25 @@ async function saveAnalysis(messageId, analysis) {
       console.error('DB update error:', e.message);
     }
   } else {
-    saveHistoryFile();
+    const msg = fileMessages.find((m) => m.id === messageId);
+    if (msg) msg.analysis = analysis;
+    saveFileData();
   }
 }
 
-async function clearAllHistory() {
-  chatHistory.length = 0;
-  messageIdCounter = 0;
-  if (useDB) {
-    try {
-      await messagesCollection.deleteMany({});
-    } catch (e) {
-      console.error('DB clear error:', e.message);
+async function autoTitleConversation(convId, text) {
+  const title = text.slice(0, 30) + (text.length > 30 ? '...' : '');
+  const conv = conversations.find((c) => c.id === convId);
+  if (conv && conv.title === 'New Chat') {
+    conv.title = title;
+    if (useDB) {
+      await conversationsCollection.updateOne({ id: convId }, { $set: { title } });
+    } else {
+      saveFileData();
     }
-  } else {
-    saveHistoryFile();
+    return title;
   }
+  return null;
 }
 
 // ─── AI Prompt ───────────────────────────────────────────────
@@ -184,25 +295,50 @@ io.on('connection', (socket) => {
 
   socket.emit('auth-required', !!ROOM_PASSWORD);
 
+  function sendConversations() {
+    socket.emit('conversations-list', conversations);
+  }
+
   if (!ROOM_PASSWORD) {
-    socket.emit('history', chatHistory);
+    sendConversations();
   }
 
   socket.on('authenticate', (password, cb) => {
     if (!ROOM_PASSWORD || password === ROOM_PASSWORD) {
       authenticated = true;
-      socket.emit('history', chatHistory);
+      sendConversations();
       cb({ success: true });
     } else {
       cb({ success: false, error: 'Incorrect password' });
     }
   });
 
-  socket.on('send-message', async ({ user, text }) => {
+  socket.on('create-conversation', async (cb) => {
     if (!authenticated) return;
+    const conv = await createConversation('New Chat');
+    io.emit('conversation-created', conv);
+    cb?.(conv);
+  });
+
+  socket.on('switch-conversation', async (convId, cb) => {
+    if (!authenticated) return;
+    const messages = await loadMessages(convId);
+    cb?.({ conversationId: convId, messages });
+  });
+
+  socket.on('delete-conversation', async (convId, cb) => {
+    if (!authenticated) return;
+    await deleteConversation(convId);
+    io.emit('conversation-deleted', convId);
+    cb?.({ success: true });
+  });
+
+  socket.on('send-message', async ({ user, text, conversationId }) => {
+    if (!authenticated || !conversationId) return;
 
     const message = {
       id: ++messageIdCounter,
+      conversationId,
       user,
       text,
       timestamp: Date.now(),
@@ -210,35 +346,37 @@ io.on('connection', (socket) => {
     await saveMessage(message);
     io.emit('new-message', message);
 
-    io.emit('ai-thinking', true);
+    const convMessages = await loadMessages(conversationId);
+    if (convMessages.length === 1) {
+      const newTitle = await autoTitleConversation(conversationId, text);
+      if (newTitle) {
+        io.emit('conversation-updated', { id: conversationId, title: newTitle });
+      }
+    }
+
+    io.emit('ai-thinking', { conversationId, thinking: true });
     try {
       const analysis = await getAIAnalysis(message);
       analysis.messageId = message.id;
       analysis.speaker = message.user;
+      analysis.conversationId = conversationId;
       await saveAnalysis(message.id, analysis);
       io.emit('ai-analysis', analysis);
     } catch (err) {
       console.error('AI error:', err.message);
-      const detail = process.env.NODE_ENV === 'production' ? '' : ` (${err.message})`;
-      io.emit('ai-error', `AI analysis temporarily unavailable${detail}`);
+      io.emit('ai-error', {
+        conversationId,
+        error: `AI analysis temporarily unavailable`,
+      });
     }
-    io.emit('ai-thinking', false);
+    io.emit('ai-thinking', { conversationId, thinking: false });
   });
 
-  socket.on('clear-history', async (password, cb) => {
-    if (ROOM_PASSWORD && password !== ROOM_PASSWORD) {
-      cb?.({ success: false });
-      return;
-    }
-    await clearAllHistory();
-    io.emit('history-cleared');
-    cb?.({ success: true });
-  });
-
-  socket.on('ask-knowledge', async (question) => {
+  socket.on('ask-knowledge', async ({ question, conversationId }) => {
     if (!authenticated || !question) return;
     try {
-      const recent = chatHistory.slice(-10);
+      const convMessages = await loadMessages(conversationId || '');
+      const recent = convMessages.slice(-10);
       const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
       const resp = await openrouter.chat.completions.create({
         model: AI_MODEL,
@@ -252,6 +390,7 @@ io.on('connection', (socket) => {
   "facts": ["1. Supporting fact with specific data/numbers and source", "2. Supporting fact with specific data/numbers and source"]
 }
 Rules:
+- IMPORTANT: Always respond in English, regardless of the language of the question.
 - "answer" MUST directly respond to the question first. If it's a yes/no question, start with yes or no. If it asks "which is better", say which and why. Never dodge the question.
 - Then provide exactly 2 supporting facts, each 1 sentence with specific numbers/data and a named source.
 - Facts must be narrowly relevant to the specific question, not generic category knowledge.`,
@@ -267,10 +406,14 @@ Rules:
       if (Array.isArray(answer.facts)) {
         answer.facts = answer.facts.slice(0, 2);
       }
-      socket.emit('knowledge-answer', answer);
+      socket.emit('knowledge-answer', { ...answer, conversationId });
     } catch (err) {
       console.error('Knowledge question error:', err.message);
-      socket.emit('knowledge-answer', { topic: 'Error', facts: ['Could not process question. Please try again.'] });
+      socket.emit('knowledge-answer', {
+        topic: 'Error',
+        facts: ['Could not process question. Please try again.'],
+        conversationId,
+      });
     }
   });
 
@@ -280,7 +423,8 @@ Rules:
 });
 
 async function getAIAnalysis(latestMessage) {
-  const recent = chatHistory.slice(-10);
+  const convMessages = await loadMessages(latestMessage.conversationId);
+  const recent = convMessages.slice(-10);
   const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
 
   const resp = await openrouter.chat.completions.create({
@@ -298,7 +442,7 @@ async function getAIAnalysis(latestMessage) {
   const content = resp.choices[0].message.content;
   const analysis = parseJSON(content);
 
-  const speakers = new Set(chatHistory.map((m) => m.user.toLowerCase()));
+  const speakers = new Set(convMessages.map((m) => m.user.toLowerCase()));
   if (!speakers.has('celeste')) {
     analysis.insightForJack = null;
     analysis.adviceToJack = null;
@@ -311,7 +455,6 @@ async function getAIAnalysis(latestMessage) {
   if (analysis.knowledgeBridge && Array.isArray(analysis.knowledgeBridge.facts)) {
     analysis.knowledgeBridge.facts = analysis.knowledgeBridge.facts.slice(0, 2);
   }
-
   if (Array.isArray(analysis.adviceToJack)) {
     analysis.adviceToJack = analysis.adviceToJack.slice(0, 2);
   }
@@ -338,16 +481,23 @@ function parseJSON(text) {
 // ─── Start ───────────────────────────────────────────────────
 async function main() {
   await initDB();
-  chatHistory = await loadHistory();
-  messageIdCounter =
-    chatHistory.length > 0 ? Math.max(...chatHistory.map((m) => m.id || 0)) : 0;
+  await migrateOldData();
+  conversations = await loadConversations();
+
+  if (useDB) {
+    const maxMsg = await messagesCollection.find({}).sort({ id: -1 }).limit(1).toArray();
+    messageIdCounter = maxMsg.length > 0 ? maxMsg[0].id : 0;
+  } else {
+    messageIdCounter =
+      fileMessages.length > 0 ? Math.max(...fileMessages.map((m) => m.id || 0)) : 0;
+  }
 
   server.listen(PORT, () => {
     console.log(`BridgeIt running at http://localhost:${PORT}`);
     if (ROOM_PASSWORD) console.log('Room is password-protected');
     console.log(`Model: ${AI_MODEL}`);
     console.log(`Storage: ${useDB ? 'MongoDB Atlas' : 'Local file'}`);
-    console.log(`Chat history: ${chatHistory.length} messages loaded`);
+    console.log(`Conversations: ${conversations.length}`);
   });
 }
 
