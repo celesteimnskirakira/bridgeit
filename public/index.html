@@ -258,6 +258,38 @@
             font-size: 0.85rem;
         }
 
+        /* ===== Ask Bar (AI column) ===== */
+        .ask-bar {
+            display: flex;
+            align-items: center;
+            padding: 8px 10px;
+            gap: 6px;
+            border-top: 1px solid #EEE;
+            background: #FAFAFA;
+        }
+        .ask-bar input {
+            flex: 1;
+            padding: 7px 12px;
+            border: 1px solid #DDD;
+            border-radius: 20px;
+            font-size: 0.82rem;
+            outline: none;
+            background: white;
+        }
+        .ask-bar input:focus { border-color: #26A69A; }
+        .ask-bar button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+            background: #26A69A;
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .ask-bar button:hover { background: #00897B; }
+
         /* ===== Footer Input ===== */
         .footer {
             height: 60px;
@@ -405,6 +437,10 @@
             <div class="col-header">AI MEDIATOR</div>
             <div class="content" id="ai-content">
                 <div class="empty-state" id="ai-empty">AI analysis will appear here after messages are exchanged</div>
+            </div>
+            <div class="ask-bar">
+                <input type="text" id="ask-input" placeholder="Ask a question..." autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();askQuestion();}">
+                <button onclick="askQuestion()">?</button>
             </div>
         </div>
 
@@ -557,6 +593,36 @@ function sendMessage() {
     input.value = '';
     input.focus();
 }
+
+function askQuestion() {
+    const input = document.getElementById('ask-input');
+    const question = input.value.trim();
+    if (!question) return;
+    input.value = '';
+
+    const container = document.getElementById('ai-content');
+    hideEmpty('ai');
+    const qDiv = document.createElement('div');
+    qDiv.className = 'ai-analysis';
+    qDiv.style.cssText = 'background:#E8EAF6;border-left:4px solid #5C6BC0;';
+    qDiv.innerHTML = `<span class="ai-tag" style="background:#C5CAE9;color:#283593;">Question</span><br>${escapeHtml(question)}`;
+    container.appendChild(qDiv);
+    container.scrollTop = container.scrollHeight;
+
+    socket.emit('ask-knowledge', question);
+}
+
+socket.on('knowledge-answer', (data) => {
+    const container = document.getElementById('ai-content');
+    const aDiv = document.createElement('div');
+    aDiv.className = 'ai-analysis';
+    aDiv.style.cssText = 'background:#E0F2F1;border-left:4px solid #26A69A;';
+    const facts = Array.isArray(data.facts) ? data.facts : [data.answer || 'No answer available'];
+    const factsHtml = facts.map(f => escapeHtml(f)).join('<br>');
+    aDiv.innerHTML = `<span class="ai-tag" style="background:#B2DFDB;color:#00695C;">Answer</span><br><b>${escapeHtml(data.topic || 'Knowledge')}</b><br>${factsHtml}`;
+    container.appendChild(aDiv);
+    container.scrollTop = container.scrollHeight;
+});
 
 function switchTab(tab) {
     document.querySelectorAll('.tab-bar button').forEach((btn, i) => {

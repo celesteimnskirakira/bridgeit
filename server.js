@@ -149,19 +149,20 @@ knowledgeBridge: ALWAYS provide it by DEFAULT. The ONLY exception to set it to n
 
 When you populate knowledgeBridge, use this structure:
 {
-  "topic": "A short label that names the SPECIFIC subject they are discussing, e.g. 'Seed Decomposition Rates' not 'Environmental Awareness'",
-  "facts": ["1. Concrete fact with data/numbers/source", "2. Another specific finding", "3. Third data point if relevant"]
+  "topic": "Name the EXACT narrow subject, e.g. 'Biodegradation Timeline: Fruit Peels vs Plastic' NOT 'Composting Benefits'",
+  "facts": ["1. Fact directly answering or informing their specific discussion point", "2. Second fact on the same narrow topic"]
 }
 
-CRITICAL rules for knowledgeBridge:
-- The topic and facts MUST be directly about the SPECIFIC SUBJECT of their conversation. If they are discussing composting, provide composting data. If arguing about screen time, provide screen time research. Do NOT provide generic relationship/communication tips — that belongs in adviceToJack/adviceToCeleste.
-- BAD example: discussing garbage sorting → facts about "communication styles" (off-topic)
-- GOOD example: discussing garbage sorting → facts about "recycling contamination rates" or "landfill decomposition timelines"
-- BAD example: arguing about sleep schedules → facts about "active listening" (off-topic)
-- GOOD example: arguing about sleep schedules → facts about "sleep deprivation effects on health"
-- Each fact MUST contain specific numbers, timeframes, percentages, or named research findings.
-- Cite sources (researchers by name, institutions, published studies, government agencies).
-- 2-3 points, each 1 sentence, numbered 1. 2. 3.
+CRITICAL rules for knowledgeBridge — READ CAREFULLY:
+- EXACTLY 2 facts. No more, no less.
+- Before writing each fact, ask yourself: "Does this fact directly address the specific thing they are talking about RIGHT NOW?" If not, discard it.
+- The facts must be NARROWLY targeted. Identify the exact sub-topic of their conversation and provide data on THAT, not the broader category.
+- BAD: discussing how long banana peels take to decompose → "Composting can reduce organic waste by 30% (EPA)" (too broad, about composting benefits in general)
+- GOOD: discussing how long banana peels take to decompose → "Banana peels take 2-5 weeks to decompose in active compost but 2+ years in landfill conditions (BioCycle, 2018)"
+- BAD: arguing about staying up late → "Sleep is important for health" (too vague, no data)
+- GOOD: arguing about staying up late → "Adults sleeping <6 hours have 13% higher mortality risk than those sleeping 7-8 hours (Walker, Why We Sleep, 2017)"
+- Each fact MUST have specific numbers + a named source (researcher, institution, or study).
+- Do NOT provide general category knowledge. Provide the precise answer to what they are debating.
 
 Rules:
 - Never take sides. Be warm but honest.
@@ -171,7 +172,7 @@ Rules:
 - Always generate ALL fields (insightForJack, insightForCeleste, adviceToJack, adviceToCeleste). Never set them to null.
 - insightForJack and insightForCeleste must each be exactly 1 sentence. Be direct and specific.
 - adviceToJack and adviceToCeleste must each have exactly 2 points, each 1 sentence.
-- For knowledgeBridge: ALWAYS include it unless the message is pure small talk ("hi", "ok", "on my way"). Even emotional conversations should get psychology/neuroscience research. When in doubt, include it.`;
+- For knowledgeBridge: ALWAYS include it unless pure small talk. Provide exactly 2 narrowly targeted facts. Generic/broad facts are FORBIDDEN.`;
 
 // ─── Static Files ────────────────────────────────────────────
 app.use(express.static('public'));
@@ -232,6 +233,40 @@ io.on('connection', (socket) => {
     await clearAllHistory();
     io.emit('history-cleared');
     cb?.({ success: true });
+  });
+
+  socket.on('ask-knowledge', async (question) => {
+    if (!authenticated || !question) return;
+    try {
+      const recent = chatHistory.slice(-10);
+      const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
+      const resp = await openrouter.chat.completions.create({
+        model: AI_MODEL,
+        messages: [
+          {
+            role: 'system',
+            content: `You are a knowledge assistant. Given the conversation context and a user question, provide a factual answer. Return ONLY valid JSON with NO markdown fences:
+{
+  "topic": "Short label for the knowledge area",
+  "facts": ["1. First fact with specific data/numbers and source", "2. Second fact with specific data/numbers and source"]
+}
+Rules:
+- Exactly 2 facts, each 1 sentence with specific numbers/data and a named source.
+- Answer the question directly and precisely. No vague or generic information.`,
+          },
+          {
+            role: 'user',
+            content: `Conversation context:\n${convo}\n\nQuestion: ${question}`,
+          },
+        ],
+        temperature: 0.5,
+      });
+      const answer = parseJSON(resp.choices[0].message.content);
+      socket.emit('knowledge-answer', answer);
+    } catch (err) {
+      console.error('Knowledge question error:', err.message);
+      socket.emit('knowledge-answer', { topic: 'Error', facts: ['Could not process question. Please try again.'] });
+    }
   });
 
   socket.on('disconnect', () => {
