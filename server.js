@@ -126,10 +126,10 @@ Your job: decode the emotions beneath words, restore charitable intent, and brid
 Analyze the latest message in the context of the recent conversation. Return ONLY valid JSON with NO markdown fences:
 
 {
-  "insightForJack": "FOR Jack, ABOUT Celeste. 1 sentence telling Jack what Celeste feels/needs. Set to null ONLY if Celeste has never spoken.",
-  "insightForCeleste": "FOR Celeste, ABOUT Jack. 1 sentence telling Celeste what Jack feels/needs. Set to null ONLY if Jack has never spoken.",
-  "adviceToJack": ["1. Advice for Jack on responding to Celeste. Null ONLY if Celeste never spoke.", "2. Second point"],
-  "adviceToCeleste": ["1. Advice for Celeste on responding to Jack. Null ONLY if Jack never spoke.", "2. Second point"],
+  "insightForJack": "1 sentence in English. Tell Jack what Celeste is feeling and what she needs right now.",
+  "insightForCeleste": "1 sentence in English. Tell Celeste what Jack is feeling and what he needs right now.",
+  "adviceToJack": ["1. One actionable sentence for Jack", "2. One actionable sentence for Jack"],
+  "adviceToCeleste": ["1. One actionable sentence for Celeste", "2. One actionable sentence for Celeste"],
   "knowledgeBridge": null,
   "translations": {
     "zh": "Natural Chinese translation of the latest message",
@@ -164,9 +164,9 @@ Rules:
 - Focus on the emotional gap, not who is "right."
 - Translations should capture tone and nuance, not just literal meaning.
 - Consider cultural communication style differences between Russian and Chinese speakers.
-- IMPORTANT null rules: insightForJack is ABOUT Celeste (for Jack to read). insightForCeleste is ABOUT Jack (for Celeste to read). So: if Jack has never spoken → set insightForCeleste=null, adviceToCeleste=null. If Celeste has never spoken → set insightForJack=null, adviceToJack=null. Do NOT null out insightForJack just because Jack hasn't spoken — it describes Celeste, not Jack.
-- insightForJack and insightForCeleste must each be exactly 1 sentence (when not null). Be direct and specific.
-- adviceToJack and adviceToCeleste must each have exactly 2 points, each 1 sentence (when not null).
+- Always generate ALL fields (insightForJack, insightForCeleste, adviceToJack, adviceToCeleste). Never set them to null.
+- insightForJack and insightForCeleste must each be exactly 1 sentence. Be direct and specific.
+- adviceToJack and adviceToCeleste must each have exactly 2 points, each 1 sentence.
 - For knowledgeBridge: ALWAYS include it unless the message is pure small talk ("hi", "ok", "on my way"). Even emotional conversations should get psychology/neuroscience research. When in doubt, include it.`;
 
 // ─── Static Files ────────────────────────────────────────────
@@ -239,27 +239,32 @@ async function getAIAnalysis(latestMessage) {
   const recent = chatHistory.slice(-10);
   const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
 
-  const speakers = new Set(chatHistory.map((m) => m.user.toLowerCase()));
-  const celesteHasSpoken = speakers.has('celeste');
-  const jackHasSpoken = speakers.has('jack');
-  let speakerNote = '';
-  if (!jackHasSpoken) speakerNote = '\nIMPORTANT: Jack has NOT spoken yet. Set insightForCeleste=null and adviceToCeleste=null (nothing to say about Jack). But DO generate insightForJack and adviceToJack (they are about Celeste, who HAS spoken).';
-  if (!celesteHasSpoken) speakerNote = '\nIMPORTANT: Celeste has NOT spoken yet. Set insightForJack=null and adviceToJack=null (nothing to say about Celeste). But DO generate insightForCeleste and adviceToCeleste (they are about Jack, who HAS spoken).';
-
   const resp = await openrouter.chat.completions.create({
     model: AI_MODEL,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `Recent conversation:\n${convo}\n\nAnalyze the latest message from ${latestMessage.user}: "${latestMessage.text}"${speakerNote}`,
+        content: `Recent conversation:\n${convo}\n\nAnalyze the latest message from ${latestMessage.user}: "${latestMessage.text}"`,
       },
     ],
     temperature: 0.7,
   });
 
   const content = resp.choices[0].message.content;
-  return parseJSON(content);
+  const analysis = parseJSON(content);
+
+  const speakers = new Set(chatHistory.map((m) => m.user.toLowerCase()));
+  if (!speakers.has('celeste')) {
+    analysis.insightForJack = null;
+    analysis.adviceToJack = null;
+  }
+  if (!speakers.has('jack')) {
+    analysis.insightForCeleste = null;
+    analysis.adviceToCeleste = null;
+  }
+
+  return analysis;
 }
 
 function parseJSON(text) {
