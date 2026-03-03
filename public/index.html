@@ -299,10 +299,58 @@
         .footer button:disabled { opacity: 0.5; cursor: not-allowed; }
         .footer button:hover:not(:disabled) { opacity: 0.85; }
 
+        /* ===== Mobile Tab Bar ===== */
+        .tab-bar {
+            display: none;
+            background: white;
+            border-bottom: 1px solid #EEE;
+        }
+        .tab-bar button {
+            flex: 1;
+            padding: 10px 0;
+            border: none;
+            background: none;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #999;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-bar button.active { color: var(--text-main); border-bottom-color: var(--user-purple); }
+
         @media (max-width: 768px) {
-            .container { flex-direction: column; padding: 8px; gap: 8px; }
-            .column { max-height: 35vh; }
+            .modal-card { padding: 35px 25px; }
             .modal-card button { padding: 12px 24px; font-size: 0.9rem; }
+
+            header { padding: 10px 16px; font-size: 1rem; }
+
+            .tab-bar { display: flex; }
+
+            .container { padding: 0; gap: 0; flex: 1; }
+            .column {
+                display: none;
+                border-radius: 0;
+                box-shadow: none;
+                flex: 1;
+            }
+            .column.mobile-active { display: flex; }
+            .col-header { display: none; }
+            .content { padding: 12px; }
+
+            .footer { height: 54px; padding: 0 10px; gap: 8px; }
+            .footer .identity-badge { font-size: 0.7rem; padding: 3px 8px; }
+            .footer input { padding: 8px 14px; font-size: 0.85rem; }
+            .footer button { padding: 8px 16px; font-size: 0.85rem; }
+
+            .bubble { font-size: 0.85rem; padding: 10px 12px; }
+            .ai-analysis { font-size: 0.8rem; padding: 10px; }
+        }
+
+        @media (max-width: 768px) and (orientation: landscape) {
+            header { padding: 6px 16px; font-size: 0.9rem; }
+            .tab-bar button { padding: 6px 0; font-size: 0.75rem; }
+            .footer { height: 44px; }
         }
     </style>
 </head>
@@ -334,22 +382,28 @@
         </div>
     </header>
 
+    <div class="tab-bar" id="tab-bar">
+        <button class="active" onclick="switchTab('celeste')">Celeste</button>
+        <button onclick="switchTab('ai')">AI Mediator</button>
+        <button onclick="switchTab('jack')">Jack</button>
+    </div>
+
     <div class="container">
-        <div class="column col-user">
+        <div class="column col-user mobile-active" id="tab-celeste">
             <div class="col-header">Celeste</div>
             <div class="content" id="celeste-messages">
                 <div class="empty-state" id="celeste-empty">No messages yet</div>
             </div>
         </div>
 
-        <div class="column col-ai">
+        <div class="column col-ai" id="tab-ai">
             <div class="col-header">AI MEDIATOR</div>
             <div class="content" id="ai-content">
                 <div class="empty-state" id="ai-empty">AI analysis will appear here after messages are exchanged</div>
             </div>
         </div>
 
-        <div class="column col-jack">
+        <div class="column col-jack" id="tab-jack">
             <div class="col-header">Jack</div>
             <div class="content" id="jack-messages">
                 <div class="empty-state" id="jack-empty">No messages yet</div>
@@ -421,6 +475,7 @@ function enterApp(identity) {
         badge.style.background = 'var(--jack-blue)';
         sendBtn.style.background = 'var(--jack-blue)';
     }
+    switchTab(identity === 'celeste' ? 'celeste' : 'jack');
     document.getElementById('msg-input').focus();
 }
 
@@ -496,6 +551,15 @@ function sendMessage() {
     socket.emit('send-message', { user: myIdentity, text });
     input.value = '';
     input.focus();
+}
+
+function switchTab(tab) {
+    document.querySelectorAll('.tab-bar button').forEach((btn, i) => {
+        btn.classList.toggle('active', ['celeste','ai','jack'][i] === tab);
+    });
+    ['celeste','ai','jack'].forEach((t) => {
+        document.getElementById('tab-' + t).classList.toggle('mobile-active', t === tab);
+    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
