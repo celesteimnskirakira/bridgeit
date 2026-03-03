@@ -319,7 +319,7 @@
         }
         .tab-bar button.active { color: var(--text-main); border-bottom-color: var(--user-purple); }
 
-        @media (max-width: 768px) {
+        @media (max-width: 768px) and (orientation: portrait) {
             .modal-card { padding: 35px 25px; }
             .modal-card button { padding: 12px 24px; font-size: 0.9rem; }
 
@@ -347,10 +347,15 @@
             .ai-analysis { font-size: 0.8rem; padding: 10px; }
         }
 
-        @media (max-width: 768px) and (orientation: landscape) {
+        @media (max-height: 500px), (max-width: 900px) and (orientation: landscape) {
             header { padding: 6px 16px; font-size: 0.9rem; }
-            .tab-bar button { padding: 6px 0; font-size: 0.75rem; }
+            .container { padding: 6px; gap: 6px; }
+            .column { border-radius: 10px; }
+            .col-header { padding: 6px 10px; font-size: 0.75rem; }
+            .content { padding: 8px; }
             .footer { height: 44px; }
+            .bubble { font-size: 0.8rem; padding: 8px 10px; margin-bottom: 8px; }
+            .ai-analysis { font-size: 0.78rem; padding: 8px; }
         }
     </style>
 </head>

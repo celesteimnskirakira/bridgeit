@@ -153,7 +153,7 @@ Rules:
 - Translations should capture tone and nuance, not just literal meaning.
 - Consider cultural communication style differences between Russian and Chinese speakers.
 - If there's only one message so far, focus on reading the speaker's emotional state and setting a supportive tone.
-- For knowledgeBridge: resist the urge to include it on every message. Most casual conversation does not need it. Only surface it when there is a genuine factual dimension worth exploring together.`;
+- For knowledgeBridge: include it whenever the conversation touches on ANY topic with a factual, scientific, cultural, psychological, or health-related dimension — even tangentially. Examples: environmental issues, diet, sleep habits, work-life balance, cultural differences, parenting approaches, money attitudes, technology use, etc. Skip it ONLY for purely logistical messages ("what time are you coming home?") or very brief emotional exchanges with no topical content.`;
 
 // ─── Static Files ────────────────────────────────────────────
 app.use(express.static('public'));
