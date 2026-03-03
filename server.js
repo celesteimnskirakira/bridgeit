@@ -128,8 +128,8 @@ Analyze the latest message in the context of the recent conversation. Return ONL
 {
   "insightForJack": "Help Jack understand Celeste right now: her emotional state, what she really means, and what she needs. Max 3 concise sentences in English. Write as if speaking directly to Jack.",
   "insightForCeleste": "Help Celeste understand Jack right now: his emotional state, what he really means, and what he needs. Max 3 concise sentences in English. Write as if speaking directly to Celeste.",
-  "adviceToJack": "Specific, actionable advice for Jack right now. 1-2 sentences in English.",
-  "adviceToCeleste": "Specific, actionable advice for Celeste right now. 1-2 sentences in English.",
+  "adviceToJack": ["1. First actionable point for Jack", "2. Second point", "3. Third point if needed"],
+  "adviceToCeleste": ["1. First actionable point for Celeste", "2. Second point", "3. Third point if needed"],
   "knowledgeBridge": null,
   "translations": {
     "zh": "Natural Chinese translation of the latest message",

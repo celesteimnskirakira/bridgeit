@@ -579,10 +579,10 @@ function renderAIAnalysis(analysis, animate) {
             </div>`;
     }
 
-    if (analysis.adviceToJack || analysis.adviceToCeleste) {
-        let adviceHtml = '';
-        if (analysis.adviceToJack) adviceHtml += `<b>To Jack:</b> ${escapeHtml(analysis.adviceToJack)}<br>`;
-        if (analysis.adviceToCeleste) adviceHtml += `<b>To Celeste:</b> ${escapeHtml(analysis.adviceToCeleste)}`;
+    const myAdvice = myIdentity === 'jack' ? analysis.adviceToJack : analysis.adviceToCeleste;
+    if (myAdvice) {
+        const points = Array.isArray(myAdvice) ? myAdvice : [myAdvice];
+        const adviceHtml = points.map(p => escapeHtml(p)).join('<br>');
         group.innerHTML += `
             <div class="ai-analysis" style="background: #FFF9C4; border-color: #FBC02D;">
                 <span class="ai-tag">Mediator's Advice</span>
