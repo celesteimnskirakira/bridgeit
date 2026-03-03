@@ -387,10 +387,11 @@ io.on('connection', (socket) => {
   });
 
   socket.on('ask-knowledge', async ({ question, conversationId }) => {
-    if (!authenticated || !question) return;
+    if (!authenticated || !question || !conversationId) return;
     try {
-      const convMessages = await loadMessages(conversationId || '');
-      const recent = convMessages.slice(-10);
+      const convMessages = await loadMessages(conversationId);
+      const chatOnly = convMessages.filter((m) => m.type !== 'knowledge-qa');
+      const recent = chatOnly.slice(-10);
       const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
       const resp = await openrouter.chat.completions.create({
         model: AI_MODEL,
@@ -416,11 +417,21 @@ Rules:
         ],
         temperature: 0.5,
       });
-      const answer = parseJSON(resp.choices[0].message.content);
-      if (Array.isArray(answer.facts)) {
-        answer.facts = answer.facts.slice(0, 2);
+      const answerData = parseJSON(resp.choices[0].message.content);
+      if (Array.isArray(answerData.facts)) {
+        answerData.facts = answerData.facts.slice(0, 2);
       }
-      socket.emit('knowledge-answer', { ...answer, conversationId });
+
+      const qaMessage = {
+        id: ++messageIdCounter,
+        conversationId,
+        type: 'knowledge-qa',
+        question,
+        knowledgeAnswer: answerData,
+        timestamp: Date.now(),
+      };
+      await saveMessage(qaMessage);
+      io.emit('knowledge-qa', qaMessage);
     } catch (err) {
       console.error('Knowledge question error:', err.message);
       socket.emit('knowledge-answer', {
@@ -438,7 +449,8 @@ Rules:
 
 async function getAIAnalysis(latestMessage) {
   const convMessages = await loadMessages(latestMessage.conversationId);
-  const recent = convMessages.slice(-10);
+  const chatOnly = convMessages.filter((m) => m.type !== 'knowledge-qa');
+  const recent = chatOnly.slice(-10);
   const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
 
   const resp = await openrouter.chat.completions.create({
@@ -456,7 +468,7 @@ async function getAIAnalysis(latestMessage) {
   const content = resp.choices[0].message.content;
   const analysis = parseJSON(content);
 
-  const speakers = new Set(convMessages.map((m) => m.user.toLowerCase()));
+  const speakers = new Set(chatOnly.map((m) => m.user?.toLowerCase()).filter(Boolean));
   if (!speakers.has('celeste')) {
     analysis.insightForJack = null;
     analysis.adviceToJack = null;

@@ -645,8 +645,12 @@ function switchConversation(convId) {
     socket.emit('switch-conversation', convId, (data) => {
         if (data && data.messages) {
             data.messages.forEach((msg) => {
-                renderMessage(msg, false);
-                if (msg.analysis) renderAIAnalysis(msg.analysis, false);
+                if (msg.type === 'knowledge-qa') {
+                    renderKnowledgeQA(msg, false);
+                } else {
+                    renderMessage(msg, false);
+                    if (msg.analysis) renderAIAnalysis(msg.analysis, false);
+                }
             });
             scrollAllToBottom();
         }
@@ -789,24 +793,65 @@ function askQuestion() {
     if (!question || !currentConversationId) return;
     input.value = '';
 
-    const container = document.getElementById('ai-content');
-    hideEmpty('ai');
-    const qDiv = document.createElement('div');
-    qDiv.className = 'ai-analysis';
-    qDiv.style.cssText = 'background:#E8EAF6;border-left:4px solid #5C6BC0;';
-    qDiv.innerHTML = `<span class="ai-tag" style="background:#C5CAE9;color:#283593;">Question</span><br>${escapeHtml(question)}`;
-    container.appendChild(qDiv);
-    container.scrollTop = container.scrollHeight;
-
     socket.emit('ask-knowledge', { question, conversationId: currentConversationId });
 }
 
+socket.on('knowledge-qa', (qaMsg) => {
+    if (qaMsg.conversationId !== currentConversationId) return;
+    renderKnowledgeQA(qaMsg, true);
+});
+
 socket.on('knowledge-answer', (data) => {
     if (data.conversationId && data.conversationId !== currentConversationId) return;
+    renderKnowledgeAnswer(data, true);
+});
+
+function renderKnowledgeQA(qaMsg, animate) {
     const container = document.getElementById('ai-content');
+    hideEmpty('ai');
+    if (document.getElementById('qa-' + qaMsg.id)) return;
+
+    const group = document.createElement('div');
+    group.className = 'ai-group';
+    group.id = 'qa-' + qaMsg.id;
+    if (!animate) group.style.animation = 'none';
+
+    const qDiv = document.createElement('div');
+    qDiv.className = 'ai-analysis';
+    qDiv.style.cssText = 'background:#E8EAF6;border-left:4px solid #5C6BC0;';
+    qDiv.innerHTML = `<span class="ai-tag" style="background:#C5CAE9;color:#283593;">Question</span><br>${escapeHtml(qaMsg.question)}`;
+    group.appendChild(qDiv);
+
+    if (qaMsg.knowledgeAnswer) {
+        const aDiv = document.createElement('div');
+        aDiv.className = 'ai-analysis';
+        aDiv.style.cssText = 'background:#E0F2F1;border-left:4px solid #26A69A;';
+        let html = `<span class="ai-tag" style="background:#B2DFDB;color:#00695C;">Answer</span>`;
+        const ans = qaMsg.knowledgeAnswer;
+        if (ans.answer) {
+            html += `<br><div style="margin:6px 0;font-size:0.88rem;line-height:1.5;">${escapeHtml(ans.answer)}</div>`;
+        }
+        const facts = Array.isArray(ans.facts) ? ans.facts : [];
+        if (facts.length > 0) {
+            html += `<div style="margin-top:4px;padding-top:6px;border-top:1px dashed #B2DFDB;font-size:0.82rem;color:#555;">`;
+            html += facts.map(f => escapeHtml(f)).join('<br>');
+            html += `</div>`;
+        }
+        aDiv.innerHTML = html;
+        group.appendChild(aDiv);
+    }
+
+    container.appendChild(group);
+    container.scrollTop = container.scrollHeight;
+}
+
+function renderKnowledgeAnswer(data, animate) {
+    const container = document.getElementById('ai-content');
+    hideEmpty('ai');
     const aDiv = document.createElement('div');
     aDiv.className = 'ai-analysis';
-    aDiv.style.cssText = 'background:#E0F2F1;border-left:4px solid #26A69A;';
+    if (!animate) aDiv.style.animation = 'none';
+    aDiv.style.cssText += 'background:#E0F2F1;border-left:4px solid #26A69A;';
     let html = `<span class="ai-tag" style="background:#B2DFDB;color:#00695C;">Answer</span>`;
     if (data.answer) {
         html += `<br><div style="margin:6px 0;font-size:0.88rem;line-height:1.5;">${escapeHtml(data.answer)}</div>`;
@@ -820,7 +865,7 @@ socket.on('knowledge-answer', (data) => {
     aDiv.innerHTML = html;
     container.appendChild(aDiv);
     container.scrollTop = container.scrollHeight;
-});
+}
 
 // ─── Tab Switching (mobile) ──────────────────────────────────
 function switchTab(tab) {
