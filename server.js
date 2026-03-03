@@ -157,9 +157,9 @@ Rules:
 - Focus on the emotional gap, not who is "right."
 - Translations should capture tone and nuance, not just literal meaning.
 - Consider cultural communication style differences between Russian and Chinese speakers.
-- If there's only one message so far, focus on reading the speaker's emotional state and setting a supportive tone.
-- insightForJack and insightForCeleste must each be exactly 1 sentence. Be direct and specific.
-- adviceToJack and adviceToCeleste must each have exactly 2 points. Each point is 1 sentence.
+- IMPORTANT: Only generate insight and advice about a person who has ACTUALLY spoken in the conversation. If Jack has not sent any message yet, set insightForCeleste to null and adviceToCeleste to null (there is nothing about Jack to analyze). If Celeste has not sent any message yet, set insightForJack to null and adviceToJack to null. Never fabricate insights about someone who hasn't spoken.
+- insightForJack and insightForCeleste must each be exactly 1 sentence (when not null). Be direct and specific.
+- adviceToJack and adviceToCeleste must each have exactly 2 points, each 1 sentence (when not null).
 - For knowledgeBridge: include it whenever the conversation touches on ANY topic with a factual dimension. Provide real data, not opinions. Skip it ONLY for purely logistical messages or brief emotional exchanges with no topical content.`;
 
 // ─── Static Files ────────────────────────────────────────────
@@ -232,13 +232,20 @@ async function getAIAnalysis(latestMessage) {
   const recent = chatHistory.slice(-10);
   const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
 
+  const speakers = new Set(chatHistory.map((m) => m.user.toLowerCase()));
+  const celesteHasSpoken = speakers.has('celeste');
+  const jackHasSpoken = speakers.has('jack');
+  let speakerNote = '';
+  if (!jackHasSpoken) speakerNote = '\nNote: Jack has NOT sent any messages yet. Set insightForCeleste and adviceToCeleste to null.';
+  if (!celesteHasSpoken) speakerNote = '\nNote: Celeste has NOT sent any messages yet. Set insightForJack and adviceToJack to null.';
+
   const resp = await openrouter.chat.completions.create({
     model: AI_MODEL,
     messages: [
       { role: 'system', content: SYSTEM_PROMPT },
       {
         role: 'user',
-        content: `Recent conversation:\n${convo}\n\nAnalyze the latest message from ${latestMessage.user}: "${latestMessage.text}"`,
+        content: `Recent conversation:\n${convo}\n\nAnalyze the latest message from ${latestMessage.user}: "${latestMessage.text}"${speakerNote}`,
       },
     ],
     temperature: 0.7,
