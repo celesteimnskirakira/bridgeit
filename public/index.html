@@ -661,14 +661,12 @@ function renderAIAnalysis(analysis, animate) {
 
     if (analysis.knowledgeBridge && analysis.knowledgeBridge.topic) {
         const kb = analysis.knowledgeBridge;
-        let kbHtml = `<b>${escapeHtml(kb.topic)}</b><br>${escapeHtml(kb.insight)}`;
-        if (kb.discussionSpark) {
-            kbHtml += `<div style="margin-top:8px;padding-top:8px;border-top:1px dashed #B2DFDB;font-style:italic;color:#00695C;">Explore together: ${escapeHtml(kb.discussionSpark)}</div>`;
-        }
+        const facts = Array.isArray(kb.facts) ? kb.facts : (kb.insight ? [kb.insight] : []);
+        const factsHtml = facts.map(f => escapeHtml(f)).join('<br>');
         group.innerHTML += `
             <div class="ai-analysis" style="background: #E0F2F1; border-left: 4px solid #26A69A;">
                 <span class="ai-tag" style="background: #B2DFDB; color: #00695C;">Knowledge Bridge</span>
-                <br>${kbHtml}
+                <br><b>${escapeHtml(kb.topic)}</b><br>${factsHtml}
             </div>`;
     }
 

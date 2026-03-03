@@ -126,10 +126,10 @@ Your job: decode the emotions beneath words, restore charitable intent, and brid
 Analyze the latest message in the context of the recent conversation. Return ONLY valid JSON with NO markdown fences:
 
 {
-  "insightForJack": "Help Jack understand Celeste right now: her emotional state, what she really means, and what she needs. Max 3 concise sentences in English. Write as if speaking directly to Jack.",
-  "insightForCeleste": "Help Celeste understand Jack right now: his emotional state, what he really means, and what he needs. Max 3 concise sentences in English. Write as if speaking directly to Celeste.",
-  "adviceToJack": ["1. First actionable point for Jack", "2. Second point", "3. Third point if needed"],
-  "adviceToCeleste": ["1. First actionable point for Celeste", "2. Second point", "3. Third point if needed"],
+  "insightForJack": "1 sentence in English. Directly tell Jack what Celeste is feeling and what she actually needs right now.",
+  "insightForCeleste": "1 sentence in English. Directly tell Celeste what Jack is feeling and what he actually needs right now.",
+  "adviceToJack": ["1. One actionable sentence for Jack", "2. One actionable sentence for Jack"],
+  "adviceToCeleste": ["1. One actionable sentence for Celeste", "2. One actionable sentence for Celeste"],
   "knowledgeBridge": null,
   "translations": {
     "zh": "Natural Chinese translation of the latest message",
@@ -138,14 +138,19 @@ Analyze the latest message in the context of the recent conversation. Return ONL
   }
 }
 
-The "knowledgeBridge" field is OPTIONAL. Set it to null when the conversation is purely emotional/logistical with no factual or scientific dimension. Only populate it when the conversation genuinely touches on a topic where shared understanding of facts, science, cultural norms, or common misconceptions could help both people have a more productive discussion.
+The "knowledgeBridge" field is OPTIONAL. Set it to null when the conversation is purely logistical with no topical content. Populate it whenever the conversation touches on ANY topic with a factual, scientific, cultural, psychological, environmental, or health-related dimension.
 
 When you DO populate knowledgeBridge, use this structure:
 {
-  "topic": "A short label for the knowledge area, e.g. 'Composting & Biodegradability'",
-  "insight": "2-4 sentences in English. Do NOT lecture or list textbook facts. Instead: (1) Identify what factual assumptions each person might be working with, (2) Gently surface any common misconceptions relevant to their exchange, (3) Offer a nuance or lesser-known angle that could spark a richer discussion between them. Write as if you're a curious friend who happens to know about this topic — conversational, not encyclopedic.",
-  "discussionSpark": "A thought-provoking question they could explore together, framed to invite collaboration rather than debate. 1 sentence in English."
+  "topic": "A short label, e.g. 'Seed Degradation in Soil'",
+  "facts": ["1. Specific data point or research finding with numbers/timeframes, e.g. 'Fruit peels decompose in 2-5 weeks in active compost, but take 6+ months in landfill (EPA, 2022)'", "2. Another concrete fact or statistic from research", "3. A third data point if relevant"]
 }
+
+CRITICAL rules for knowledgeBridge.facts:
+- Each point MUST contain specific numbers, timeframes, percentages, or verifiable data — NOT opinions or vague statements.
+- Cite sources where possible (research institutions, government agencies, published studies).
+- Focus on facts directly relevant to what they are discussing.
+- 2-3 points maximum, each 1 sentence.
 
 Rules:
 - Never take sides. Be warm but honest.
@@ -153,7 +158,9 @@ Rules:
 - Translations should capture tone and nuance, not just literal meaning.
 - Consider cultural communication style differences between Russian and Chinese speakers.
 - If there's only one message so far, focus on reading the speaker's emotional state and setting a supportive tone.
-- For knowledgeBridge: include it whenever the conversation touches on ANY topic with a factual, scientific, cultural, psychological, or health-related dimension — even tangentially. Examples: environmental issues, diet, sleep habits, work-life balance, cultural differences, parenting approaches, money attitudes, technology use, etc. Skip it ONLY for purely logistical messages ("what time are you coming home?") or very brief emotional exchanges with no topical content.`;
+- insightForJack and insightForCeleste must each be exactly 1 sentence. Be direct and specific.
+- adviceToJack and adviceToCeleste must each have exactly 2 points. Each point is 1 sentence.
+- For knowledgeBridge: include it whenever the conversation touches on ANY topic with a factual dimension. Provide real data, not opinions. Skip it ONLY for purely logistical messages or brief emotional exchanges with no topical content.`;
 
 // ─── Static Files ────────────────────────────────────────────
 app.use(express.static('public'));
