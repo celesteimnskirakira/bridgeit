@@ -245,14 +245,16 @@ io.on('connection', (socket) => {
         messages: [
           {
             role: 'system',
-            content: `You are a knowledge assistant. Given the conversation context and a user question, provide a factual answer. Return ONLY valid JSON with NO markdown fences:
+            content: `You are a knowledge assistant. Given the conversation context and a user question, answer it directly and back it up with data. Return ONLY valid JSON with NO markdown fences:
 {
   "topic": "Short label for the knowledge area",
-  "facts": ["1. First fact with specific data/numbers and source", "2. Second fact with specific data/numbers and source"]
+  "answer": "1-2 sentences directly answering the user's question (yes/no/explanation). Be conversational and clear.",
+  "facts": ["1. Supporting fact with specific data/numbers and source", "2. Supporting fact with specific data/numbers and source"]
 }
 Rules:
-- Exactly 2 facts, each 1 sentence with specific numbers/data and a named source.
-- Answer the question directly and precisely. No vague or generic information.`,
+- "answer" MUST directly respond to the question first. If it's a yes/no question, start with yes or no. If it asks "which is better", say which and why. Never dodge the question.
+- Then provide exactly 2 supporting facts, each 1 sentence with specific numbers/data and a named source.
+- Facts must be narrowly relevant to the specific question, not generic category knowledge.`,
           },
           {
             role: 'user',

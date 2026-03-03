@@ -620,9 +620,17 @@ socket.on('knowledge-answer', (data) => {
     const aDiv = document.createElement('div');
     aDiv.className = 'ai-analysis';
     aDiv.style.cssText = 'background:#E0F2F1;border-left:4px solid #26A69A;';
-    const facts = Array.isArray(data.facts) ? data.facts : [data.answer || 'No answer available'];
-    const factsHtml = facts.map(f => escapeHtml(f)).join('<br>');
-    aDiv.innerHTML = `<span class="ai-tag" style="background:#B2DFDB;color:#00695C;">Answer</span><br><b>${escapeHtml(data.topic || 'Knowledge')}</b><br>${factsHtml}`;
+    let html = `<span class="ai-tag" style="background:#B2DFDB;color:#00695C;">Answer</span>`;
+    if (data.answer) {
+        html += `<br><div style="margin:6px 0;font-size:0.88rem;line-height:1.5;">${escapeHtml(data.answer)}</div>`;
+    }
+    const facts = Array.isArray(data.facts) ? data.facts : [];
+    if (facts.length > 0) {
+        html += `<div style="margin-top:4px;padding-top:6px;border-top:1px dashed #B2DFDB;font-size:0.82rem;color:#555;">`;
+        html += facts.map(f => escapeHtml(f)).join('<br>');
+        html += `</div>`;
+    }
+    aDiv.innerHTML = html;
     container.appendChild(aDiv);
     container.scrollTop = container.scrollHeight;
 });
