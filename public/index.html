@@ -637,26 +637,30 @@ function renderAIAnalysis(analysis, animate) {
     group.className = 'ai-group';
     if (!animate) group.style.animation = 'none';
 
-    const insight = myIdentity === 'jack' ? analysis.insightForJack : analysis.insightForCeleste;
-    if (insight) {
-        const otherName = myIdentity === 'jack' ? 'Celeste' : 'Jack';
-        const otherColor = myIdentity === 'jack' ? 'var(--user-purple)' : 'var(--jack-blue)';
-        group.innerHTML += `
-            <div class="ai-analysis" style="border-left: 4px solid ${otherColor};">
-                <span class="ai-tag">Understanding ${otherName}</span>
-                <br>${escapeHtml(insight)}
-            </div>`;
-    }
+    const isSender = analysis.speaker && analysis.speaker.toLowerCase() === myIdentity;
 
-    const myAdvice = myIdentity === 'jack' ? analysis.adviceToJack : analysis.adviceToCeleste;
-    if (myAdvice) {
-        const points = Array.isArray(myAdvice) ? myAdvice : [myAdvice];
-        const adviceHtml = points.map(p => escapeHtml(p)).join('<br>');
-        group.innerHTML += `
-            <div class="ai-analysis" style="background: #FFF9C4; border-color: #FBC02D;">
-                <span class="ai-tag">Mediator's Advice</span>
-                <br>${adviceHtml}
-            </div>`;
+    if (!isSender) {
+        const insight = myIdentity === 'jack' ? analysis.insightForJack : analysis.insightForCeleste;
+        if (insight) {
+            const otherName = myIdentity === 'jack' ? 'Celeste' : 'Jack';
+            const otherColor = myIdentity === 'jack' ? 'var(--user-purple)' : 'var(--jack-blue)';
+            group.innerHTML += `
+                <div class="ai-analysis" style="border-left: 4px solid ${otherColor};">
+                    <span class="ai-tag">Understanding ${otherName}</span>
+                    <br>${escapeHtml(insight)}
+                </div>`;
+        }
+
+        const myAdvice = myIdentity === 'jack' ? analysis.adviceToJack : analysis.adviceToCeleste;
+        if (myAdvice) {
+            const points = Array.isArray(myAdvice) ? myAdvice : [myAdvice];
+            const adviceHtml = points.map(p => escapeHtml(p)).join('<br>');
+            group.innerHTML += `
+                <div class="ai-analysis" style="background: #FFF9C4; border-color: #FBC02D;">
+                    <span class="ai-tag">Mediator's Advice</span>
+                    <br>${adviceHtml}
+                </div>`;
+        }
     }
 
     if (analysis.knowledgeBridge && analysis.knowledgeBridge.topic) {
