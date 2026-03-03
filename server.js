@@ -126,10 +126,10 @@ Your job: decode the emotions beneath words, restore charitable intent, and brid
 Analyze the latest message in the context of the recent conversation. Return ONLY valid JSON with NO markdown fences:
 
 {
-  "insightForJack": "1 sentence in English. Directly tell Jack what Celeste is feeling and what she actually needs right now.",
-  "insightForCeleste": "1 sentence in English. Directly tell Celeste what Jack is feeling and what he actually needs right now.",
-  "adviceToJack": ["1. One actionable sentence for Jack", "2. One actionable sentence for Jack"],
-  "adviceToCeleste": ["1. One actionable sentence for Celeste", "2. One actionable sentence for Celeste"],
+  "insightForJack": "FOR Jack, ABOUT Celeste. 1 sentence telling Jack what Celeste feels/needs. Set to null ONLY if Celeste has never spoken.",
+  "insightForCeleste": "FOR Celeste, ABOUT Jack. 1 sentence telling Celeste what Jack feels/needs. Set to null ONLY if Jack has never spoken.",
+  "adviceToJack": ["1. Advice for Jack on responding to Celeste. Null ONLY if Celeste never spoke.", "2. Second point"],
+  "adviceToCeleste": ["1. Advice for Celeste on responding to Jack. Null ONLY if Jack never spoke.", "2. Second point"],
   "knowledgeBridge": null,
   "translations": {
     "zh": "Natural Chinese translation of the latest message",
@@ -164,7 +164,7 @@ Rules:
 - Focus on the emotional gap, not who is "right."
 - Translations should capture tone and nuance, not just literal meaning.
 - Consider cultural communication style differences between Russian and Chinese speakers.
-- IMPORTANT: Only generate insight and advice about a person who has ACTUALLY spoken in the conversation. If Jack has not sent any message yet, set insightForCeleste to null and adviceToCeleste to null (there is nothing about Jack to analyze). If Celeste has not sent any message yet, set insightForJack to null and adviceToJack to null. Never fabricate insights about someone who hasn't spoken.
+- IMPORTANT null rules: insightForJack is ABOUT Celeste (for Jack to read). insightForCeleste is ABOUT Jack (for Celeste to read). So: if Jack has never spoken → set insightForCeleste=null, adviceToCeleste=null. If Celeste has never spoken → set insightForJack=null, adviceToJack=null. Do NOT null out insightForJack just because Jack hasn't spoken — it describes Celeste, not Jack.
 - insightForJack and insightForCeleste must each be exactly 1 sentence (when not null). Be direct and specific.
 - adviceToJack and adviceToCeleste must each have exactly 2 points, each 1 sentence (when not null).
 - For knowledgeBridge: ALWAYS include it unless the message is pure small talk ("hi", "ok", "on my way"). Even emotional conversations should get psychology/neuroscience research. When in doubt, include it.`;
@@ -243,8 +243,8 @@ async function getAIAnalysis(latestMessage) {
   const celesteHasSpoken = speakers.has('celeste');
   const jackHasSpoken = speakers.has('jack');
   let speakerNote = '';
-  if (!jackHasSpoken) speakerNote = '\nNote: Jack has NOT sent any messages yet. Set insightForCeleste and adviceToCeleste to null.';
-  if (!celesteHasSpoken) speakerNote = '\nNote: Celeste has NOT sent any messages yet. Set insightForJack and adviceToJack to null.';
+  if (!jackHasSpoken) speakerNote = '\nIMPORTANT: Jack has NOT spoken yet. Set insightForCeleste=null and adviceToCeleste=null (nothing to say about Jack). But DO generate insightForJack and adviceToJack (they are about Celeste, who HAS spoken).';
+  if (!celesteHasSpoken) speakerNote = '\nIMPORTANT: Celeste has NOT spoken yet. Set insightForJack=null and adviceToJack=null (nothing to say about Celeste). But DO generate insightForCeleste and adviceToCeleste (they are about Jack, who HAS spoken).';
 
   const resp = await openrouter.chat.completions.create({
     model: AI_MODEL,
