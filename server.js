@@ -365,158 +365,77 @@ app.patch('/auth/profile', (req, res) => {
   }
 });
 
+// ─── Socket.io Auth Middleware ────────────────────────────────
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error('No auth token'));
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = findUserById(payload.userId);
+    if (!user) return next(new Error('User not found'));
+    socket.userId = user.id;
+    socket.userNickname = user.nickname;
+    next();
+  } catch (e) {
+    next(new Error('Invalid token'));
+  }
+});
+
 // ─── Socket.io ───────────────────────────────────────────────
-io.on('connection', (socket) => {
-  console.log('Connected:', socket.id);
-  let authenticated = !ROOM_PASSWORD;
+io.on('connection', async (socket) => {
+  console.log('Connected:', socket.id, 'user:', socket.userNickname);
 
-  socket.emit('auth-required', !!ROOM_PASSWORD);
-
-  function sendConversations() {
-    socket.emit('conversations-list', conversations);
-  }
-
-  if (!ROOM_PASSWORD) {
-    sendConversations();
-  }
-
-  socket.on('authenticate', (password, cb) => {
-    if (!ROOM_PASSWORD || password === ROOM_PASSWORD) {
-      authenticated = true;
-      sendConversations();
-      cb({ success: true });
-    } else {
-      cb({ success: false, error: 'Incorrect password' });
+  socket.on('join-room', async (roomId, cb) => {
+    const room = getRoomById(roomId);
+    if (!room || !room.participants.includes(socket.userId)) {
+      return cb?.({ error: 'Forbidden' });
     }
+    socket.join(roomId);
+    const messages = await loadMessages(roomId);
+    cb?.({ messages });
   });
 
-  socket.on('create-conversation', async (cb) => {
-    if (!authenticated) return;
-    const conv = await createConversation('New Chat');
-    io.emit('conversation-created', conv);
-    cb?.(conv);
-  });
-
-  socket.on('switch-conversation', async (convId, cb) => {
-    if (!authenticated) return;
-    const messages = await loadMessages(convId);
-    cb?.({ conversationId: convId, messages });
-  });
-
-  socket.on('delete-conversation', async (convId, cb) => {
-    if (!authenticated) return;
-    await deleteConversation(convId);
-    io.emit('conversation-deleted', convId);
-    cb?.({ success: true });
-  });
-
-  socket.on('rename-conversation', async ({ convId, title }, cb) => {
-    if (!authenticated || !convId || !title) return;
-    const conv = conversations.find((c) => c.id === convId);
-    if (!conv) return cb?.({ success: false });
-    conv.title = title.slice(0, 50);
-    if (useDB) {
-      await conversationsCollection.updateOne({ id: convId }, { $set: { title: conv.title } });
-    } else {
-      saveFileData();
-    }
-    io.emit('conversation-updated', { id: convId, title: conv.title });
-    cb?.({ success: true });
-  });
-
-  socket.on('send-message', async ({ user, text, conversationId }) => {
-    if (!authenticated || !conversationId) return;
+  socket.on('send-message', async ({ roomId, text }) => {
+    const room = getRoomById(roomId);
+    if (!room || !room.participants.includes(socket.userId)) return;
 
     const message = {
       id: ++messageIdCounter,
-      conversationId,
-      user,
+      roomId,
+      senderId: socket.userId,
+      senderNickname: socket.userNickname,
       text,
       timestamp: Date.now(),
     };
-    await saveMessage(message);
-    io.emit('new-message', message);
+    await saveMessage({ ...message, conversationId: roomId });
+    io.to(roomId).emit('new-message', message);
 
-    const convMessages = await loadMessages(conversationId);
-    if (convMessages.length === 1) {
-      const newTitle = await autoTitleConversation(conversationId, text);
-      if (newTitle) {
-        io.emit('conversation-updated', { id: conversationId, title: newTitle });
-      }
-    }
-
-    io.emit('ai-thinking', { conversationId, thinking: true });
+    // AI Analysis
+    io.to(roomId).emit('ai-thinking', { roomId, thinking: true });
     try {
-      const analysis = await getAIAnalysis(message);
-      analysis.messageId = message.id;
-      analysis.speaker = message.user;
-      analysis.conversationId = conversationId;
+      const analysis = await getAIAnalysis(message, room);
       await saveAnalysis(message.id, analysis);
-      io.emit('ai-analysis', analysis);
+      io.to(roomId).emit('ai-analysis', analysis);
     } catch (err) {
       console.error('AI error:', err.message);
-      io.emit('ai-error', {
-        conversationId,
-        error: `AI analysis temporarily unavailable`,
-      });
+      io.to(roomId).emit('ai-error', { roomId, error: 'AI analysis temporarily unavailable' });
     }
-    io.emit('ai-thinking', { conversationId, thinking: false });
+    io.to(roomId).emit('ai-thinking', { roomId, thinking: false });
   });
 
-  socket.on('ask-knowledge', async ({ question, conversationId }) => {
-    if (!authenticated || !question || !conversationId) return;
-    try {
-      const convMessages = await loadMessages(conversationId);
-      const chatOnly = convMessages.filter((m) => m.type !== 'knowledge-qa');
-      const recent = chatOnly.slice(-10);
-      const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
-      const resp = await openrouter.chat.completions.create({
-        model: AI_MODEL,
-        messages: [
-          {
-            role: 'system',
-            content: `You are a knowledge assistant. Given the conversation context and a user question, answer it directly and back it up with data. Return ONLY valid JSON with NO markdown fences:
-{
-  "topic": "Short label for the knowledge area",
-  "answer": "1-2 sentences directly answering the user's question (yes/no/explanation). Be conversational and clear.",
-  "facts": ["1. Supporting fact with specific data/numbers and source", "2. Supporting fact with specific data/numbers and source"]
-}
-Rules:
-- IMPORTANT: Always respond in English, regardless of the language of the question.
-- "answer" MUST directly respond to the question first. If it's a yes/no question, start with yes or no. If it asks "which is better", say which and why. Never dodge the question.
-- Then provide exactly 2 supporting facts, each 1 sentence with specific numbers/data and a named source.
-- Facts must be narrowly relevant to the specific question, not generic category knowledge.`,
-          },
-          {
-            role: 'user',
-            content: `Conversation context:\n${convo}\n\nQuestion: ${question}`,
-          },
-        ],
-        temperature: 0.5,
-      });
-      const answerData = parseJSON(resp.choices[0].message.content);
-      if (Array.isArray(answerData.facts)) {
-        answerData.facts = answerData.facts.slice(0, 2);
-      }
-
-      const qaMessage = {
-        id: ++messageIdCounter,
-        conversationId,
-        type: 'knowledge-qa',
-        question,
-        knowledgeAnswer: answerData,
-        timestamp: Date.now(),
-      };
-      await saveMessage(qaMessage);
-      io.emit('knowledge-qa', qaMessage);
-    } catch (err) {
-      console.error('Knowledge question error:', err.message);
-      socket.emit('knowledge-answer', {
-        topic: 'Error',
-        facts: ['Could not process question. Please try again.'],
-        conversationId,
-      });
-    }
+  socket.on('new-topic-break', async ({ roomId }, cb) => {
+    const room = getRoomById(roomId);
+    if (!room || !room.participants.includes(socket.userId)) return;
+    const breakMsg = {
+      id: ++messageIdCounter,
+      roomId,
+      conversationId: roomId,
+      type: 'topic-break',
+      timestamp: Date.now(),
+    };
+    await saveMessage(breakMsg);
+    io.to(roomId).emit('topic-break', breakMsg);
+    cb?.({ ok: true });
   });
 
   socket.on('disconnect', () => {
