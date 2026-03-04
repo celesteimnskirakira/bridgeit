@@ -214,15 +214,15 @@ async function deleteConversation(convId) {
 }
 
 // ─── Message Operations ──────────────────────────────────────
-async function loadMessages(convId) {
+async function loadMessages(roomId) {
   if (useDB) {
     const docs = await messagesCollection
-      .find({ conversationId: convId })
+      .find({ $or: [{ roomId }, { conversationId: roomId }] })
       .sort({ id: 1 })
       .toArray();
     return docs.map(({ _id, ...rest }) => rest);
   }
-  return fileMessages.filter((m) => m.conversationId === convId);
+  return fileMessages.filter((m) => m.roomId === roomId || m.conversationId === roomId);
 }
 
 async function saveMessage(message) {
