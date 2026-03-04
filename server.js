@@ -69,6 +69,28 @@ function findUserByEmail(email) {
   return loadUsers().find(u => u.email === email.toLowerCase()) || null;
 }
 
+// ─── Room Storage ─────────────────────────────────────────────
+function loadRooms() {
+  try {
+    if (fs.existsSync(ROOMS_FILE)) return JSON.parse(fs.readFileSync(ROOMS_FILE, 'utf-8'));
+  } catch (e) { console.error('loadRooms error:', e.message); }
+  return [];
+}
+
+function saveRooms(rooms) {
+  try {
+    fs.writeFileSync(ROOMS_FILE, JSON.stringify(rooms, null, 2));
+  } catch (e) { console.error('saveRooms error:', e.message); }
+}
+
+function getRoomsForUser(userId) {
+  return loadRooms().filter(r => r.participants.includes(userId));
+}
+
+function getRoomById(roomId) {
+  return loadRooms().find(r => r.id === roomId) || null;
+}
+
 async function initDB() {
   if (!MONGODB_URI) return;
   try {
@@ -363,6 +385,92 @@ app.patch('/auth/profile', (req, res) => {
   } catch (e) {
     res.status(401).json({ error: 'Invalid token' });
   }
+});
+
+// ─── Room Routes ─────────────────────────────────────────────
+function authMiddleware(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth) return res.status(401).json({ error: 'No token' });
+  try {
+    const { userId } = jwt.verify(auth.replace('Bearer ', ''), JWT_SECRET);
+    req.userId = userId;
+    next();
+  } catch (e) {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+// 获取用户的房间列表（联系人列表）
+app.get('/rooms', authMiddleware, async (req, res) => {
+  const rooms = getRoomsForUser(req.userId);
+  const result = await Promise.all(rooms.map(async (room) => {
+    const partnerId = room.participants.find(id => id !== req.userId);
+    const partner = findUserById(partnerId);
+    const msgs = await loadMessages(room.id);
+    const lastMsg = msgs.filter(m => m.type !== 'topic-break').slice(-1)[0];
+    return {
+      id: room.id,
+      partner: partner ? { id: partner.id, nickname: partner.nickname } : null,
+      translateTo: room.translateTo || [],
+      lastMessage: lastMsg ? { text: lastMsg.text, timestamp: lastMsg.timestamp } : null,
+    };
+  }));
+  result.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
+  res.json(result);
+});
+
+// 创建邀请链接
+app.post('/rooms/invite', authMiddleware, (req, res) => {
+  const inviteToken = generateId() + generateId();
+  const rooms = loadRooms();
+  const room = {
+    id: generateId(),
+    participants: [req.userId],
+    inviteToken,
+    translateTo: [],
+    createdAt: Date.now(),
+  };
+  rooms.push(room);
+  saveRooms(rooms);
+  const inviteUrl = `${req.protocol}://${req.get('host')}/invite.html?token=${inviteToken}`;
+  res.json({ inviteUrl, roomId: room.id });
+});
+
+// 接受邀请
+app.post('/rooms/join', authMiddleware, (req, res) => {
+  const { token } = req.body;
+  if (!token) return res.status(400).json({ error: 'token required' });
+  const rooms = loadRooms();
+  const room = rooms.find(r => r.inviteToken === token);
+  if (!room) return res.status(404).json({ error: 'Invite not found' });
+  if (room.participants.includes(req.userId)) return res.status(400).json({ error: 'Already in room' });
+  if (room.participants.length >= 2) return res.status(400).json({ error: 'Room is full' });
+  room.participants.push(req.userId);
+  delete room.inviteToken;
+  saveRooms(rooms);
+  const partnerId = room.participants.find(id => id !== req.userId);
+  const partner = findUserById(partnerId);
+  res.json({ roomId: room.id, partner: partner ? { id: partner.id, nickname: partner.nickname } : null });
+});
+
+// 更新翻译设置
+app.patch('/rooms/:roomId/translate', authMiddleware, (req, res) => {
+  const { translateTo } = req.body;
+  const rooms = loadRooms();
+  const room = rooms.find(r => r.id === req.params.roomId);
+  if (!room || !room.participants.includes(req.userId)) return res.status(403).json({ error: 'Forbidden' });
+  room.translateTo = translateTo || [];
+  saveRooms(rooms);
+  res.json({ ok: true });
+});
+
+// 获取邀请token信息（邀请页用）
+app.get('/rooms/invite/:token', (req, res) => {
+  const rooms = loadRooms();
+  const room = rooms.find(r => r.inviteToken === req.params.token);
+  if (!room) return res.status(404).json({ error: 'Invite not found' });
+  const inviter = findUserById(room.participants[0]);
+  res.json({ inviterNickname: inviter?.nickname || 'Someone', roomId: room.id });
 });
 
 // ─── Socket.io Auth Middleware ────────────────────────────────
