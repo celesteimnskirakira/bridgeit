@@ -22,6 +22,10 @@
     .error { color: #F44336; font-size: 0.82rem; margin-bottom: 12px; display: none; }
     .switch-link { text-align: center; margin-top: 16px; font-size: 0.88rem; color: #888; }
     .switch-link a { color: #7B1FA2; text-decoration: none; font-weight: 600; }
+    .contact-hint { font-size: 0.78rem; margin-top: 4px; }
+    .contact-hint.available { color: #4CAF50; }
+    .contact-hint.taken { color: #F44336; }
+    .contact-hint.hint { color: #999; }
   </style>
 </head>
 <body>
@@ -34,12 +38,13 @@
       <input type="text" id="nickname" class="input-field" placeholder="你的名字" autocomplete="nickname">
     </div>
     <div class="form-group">
-      <label>邮箱</label>
-      <input type="email" id="email" class="input-field" placeholder="your@email.com" autocomplete="email">
+      <label>联系号</label>
+      <input type="text" id="contactId" class="input-field" placeholder="字母或数字，3-20位" autocomplete="username" oninput="checkContactId()">
+      <div class="contact-hint hint" id="contact-hint">只允许字母和数字，3-20位</div>
     </div>
     <div class="form-group">
-      <label>密码</label>
-      <input type="password" id="password" class="input-field" placeholder="至少6位" autocomplete="new-password">
+      <label>PIN 码</label>
+      <input type="password" id="pin" class="input-field" placeholder="至少4位" autocomplete="new-password">
     </div>
     <div class="error" id="error-msg"></div>
     <button class="btn-primary" id="reg-btn" onclick="doRegister()">创建账号</button>
@@ -49,33 +54,70 @@
 <script>
   if (localStorage.getItem('bridgeit_token')) window.location.href = '/home.html';
 
+  let checkTimer = null;
+  let contactIdAvailable = false;
+
+  function checkContactId() {
+    clearTimeout(checkTimer);
+    const contactId = document.getElementById('contactId').value.trim();
+    const hint = document.getElementById('contact-hint');
+    if (!contactId) {
+      hint.textContent = '只允许字母和数字，3-20位';
+      hint.className = 'contact-hint hint';
+      contactIdAvailable = false;
+      return;
+    }
+    if (!/^[a-zA-Z0-9]{3,20}$/.test(contactId)) {
+      hint.textContent = '只允许字母和数字，3-20位';
+      hint.className = 'contact-hint taken';
+      contactIdAvailable = false;
+      return;
+    }
+    hint.textContent = '检查中...';
+    hint.className = 'contact-hint hint';
+    checkTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/auth/check/${encodeURIComponent(contactId)}`);
+        const data = await res.json();
+        if (data.available) {
+          hint.textContent = '✓ 可用';
+          hint.className = 'contact-hint available';
+          contactIdAvailable = true;
+        } else {
+          hint.textContent = '✗ 已被使用';
+          hint.className = 'contact-hint taken';
+          contactIdAvailable = false;
+        }
+      } catch (e) {
+        hint.textContent = '检查失败';
+        hint.className = 'contact-hint hint';
+      }
+    }, 400);
+  }
+
   async function doRegister() {
     const nickname = document.getElementById('nickname').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
-    if (!nickname || !email || !password) { showError('请填写所有字段'); return; }
-    if (password.length < 6) { showError('密码至少6位'); return; }
+    const contactId = document.getElementById('contactId').value.trim();
+    const pin = document.getElementById('pin').value;
+    if (!nickname || !contactId || !pin) { showError('请填写所有字段'); return; }
+    if (!/^[a-zA-Z0-9]{3,20}$/.test(contactId)) { showError('联系号只能包含字母和数字，3-20位'); return; }
+    if (!contactIdAvailable) { showError('联系号不可用，请换一个'); return; }
+    if (pin.length < 4) { showError('PIN码至少4位'); return; }
 
     const btn = document.getElementById('reg-btn');
     btn.disabled = true; btn.textContent = '注册中...';
 
     try {
-      const res = await fetch('/auth/register', {
+      const res = await fetch('/auth/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, nickname, password }),
+        body: JSON.stringify({ contactId, nickname, pin }),
       });
       const data = await res.json();
       if (!res.ok) { showError(data.error || '注册失败'); return; }
       localStorage.setItem('bridgeit_token', data.token);
       localStorage.setItem('bridgeit_user', JSON.stringify(data.user));
-      const pending = localStorage.getItem('bridgeit_pending_invite');
-      if (pending) {
-        localStorage.removeItem('bridgeit_pending_invite');
-        window.location.href = '/invite.html?token=' + pending;
-      } else {
-        window.location.href = '/home.html';
-      }
+      window.location.href = '/home.html';
     } catch (e) {
       showError('网络错误，请重试');
     } finally {

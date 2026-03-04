@@ -65,25 +65,34 @@
       border-radius: 10px; color: #999;
       font-size: 0.9rem; cursor: pointer;
     }
+
+    /* 添加好友抽屉 */
+    .add-friend-drawer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; border-radius: 20px 20px 0 0;
+      padding: 24px 20px 40px;
+    }
+    .add-friend-drawer h3 { font-size: 1rem; margin-bottom: 16px; color: #333; }
+    .add-friend-error { color: #F44336; font-size: 0.82rem; margin-top: 8px; display: none; }
   </style>
 </head>
 <body>
 
 <div class="topbar">
   <h1>BridgeIt</h1>
-  <button onclick="openSettings()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;" id="avatar-btn">👤</button>
+  <button onclick="openSettings()" style="background:none;border:none;font-size:0.8rem;cursor:pointer;color:#7B1FA2;font-weight:600;" id="avatar-btn">👤</button>
 </div>
 
 <div class="main-content">
   <div class="room-list" id="room-list">
     <div class="empty-state">
       <h3>还没有对话</h3>
-      <p>点右下角 + 邀请对方开始</p>
+      <p>点右下角 + 添加好友</p>
     </div>
   </div>
 </div>
 
-<button class="fab" onclick="createInvite()">+</button>
+<button class="fab" onclick="openAddFriend()">+</button>
 
 <!-- 设置抽屉 -->
 <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()">
@@ -100,12 +109,23 @@
   </div>
 </div>
 
+<!-- 添加好友抽屉 -->
+<div class="settings-overlay" id="add-friend-overlay" onclick="closeAddFriend()">
+  <div class="add-friend-drawer" onclick="event.stopPropagation()">
+    <h3>添加好友</h3>
+    <input type="text" id="add-contact-input" class="input-field" placeholder="对方的联系号" autocomplete="off">
+    <div class="add-friend-error" id="add-friend-error"></div>
+    <button class="btn-primary" style="margin-top:16px;" id="add-friend-btn" onclick="doAddFriend()">确认添加</button>
+  </div>
+</div>
+
 <script>
   const token = localStorage.getItem('bridgeit_token');
   const user = JSON.parse(localStorage.getItem('bridgeit_user') || '{}');
   if (!token) window.location.href = '/login.html';
 
-  document.getElementById('avatar-btn').textContent = user.nickname?.[0]?.toUpperCase() || '👤';
+  const contactLabel = user.contactId ? '#' + user.contactId : (user.nickname?.[0]?.toUpperCase() || '👤');
+  document.getElementById('avatar-btn').textContent = contactLabel;
 
   async function loadRooms() {
     try {
@@ -119,7 +139,7 @@
   function renderRooms(rooms) {
     const list = document.getElementById('room-list');
     if (rooms.length === 0) {
-      list.innerHTML = '<div class="empty-state"><h3>还没有对话</h3><p>点右下角 + 邀请对方开始</p></div>';
+      list.innerHTML = '<div class="empty-state"><h3>还没有对话</h3><p>点右下角 + 添加好友</p></div>';
       return;
     }
     list.innerHTML = rooms.map(room => {
@@ -144,19 +164,43 @@
     window.location.href = '/chat.html';
   }
 
-  async function createInvite() {
+  function openAddFriend() {
+    document.getElementById('add-contact-input').value = '';
+    document.getElementById('add-friend-error').style.display = 'none';
+    document.getElementById('add-friend-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('add-contact-input').focus(), 100);
+  }
+
+  function closeAddFriend() {
+    document.getElementById('add-friend-overlay').classList.remove('open');
+  }
+
+  async function doAddFriend() {
+    const contactId = document.getElementById('add-contact-input').value.trim();
+    const errEl = document.getElementById('add-friend-error');
+    errEl.style.display = 'none';
+    if (!contactId) { errEl.textContent = '请输入联系号'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('add-friend-btn');
+    btn.disabled = true; btn.textContent = '添加中...';
+
     try {
-      const res = await fetch('/rooms/invite', {
-        method: 'POST', headers: { Authorization: 'Bearer ' + token }
+      const res = await fetch('/rooms/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ contactId }),
       });
       const data = await res.json();
-      if (navigator.share) {
-        navigator.share({ title: 'BridgeIt 邀请', url: data.inviteUrl });
-      } else {
-        await navigator.clipboard.writeText(data.inviteUrl);
-        alert('邀请链接已复制！发给对方吧');
-      }
-    } catch (e) { alert('创建邀请失败，请重试'); }
+      if (!res.ok) { errEl.textContent = data.error || '添加失败'; errEl.style.display = 'block'; return; }
+      closeAddFriend();
+      localStorage.setItem('bridgeit_current_room', data.roomId);
+      localStorage.setItem('bridgeit_partner_name', data.partner?.nickname || '对方');
+      window.location.href = '/chat.html';
+    } catch (e) {
+      errEl.textContent = '网络错误，请重试'; errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = '确认添加';
+    }
   }
 
   function openSettings() {

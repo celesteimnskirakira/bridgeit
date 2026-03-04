@@ -65,8 +65,8 @@ function findUserById(id) {
   return loadUsers().find(u => u.id === id) || null;
 }
 
-function findUserByEmail(email) {
-  return loadUsers().find(u => u.email === email.toLowerCase()) || null;
+function findUserByContactId(contactId) {
+  return loadUsers().find(u => u.contactId === contactId.toLowerCase()) || null;
 }
 
 // ─── Room Storage ─────────────────────────────────────────────
@@ -324,32 +324,40 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // ─── Auth Routes ─────────────────────────────────────────────
-app.post('/auth/register', async (req, res) => {
-  const { email, nickname, password } = req.body;
-  if (!email || !nickname || !password) {
-    return res.status(400).json({ error: 'email, nickname, password required' });
+app.get('/auth/check/:contactId', (req, res) => {
+  const exists = !!findUserByContactId(req.params.contactId);
+  res.json({ available: !exists });
+});
+
+app.post('/auth/create', async (req, res) => {
+  const { contactId, nickname, pin } = req.body;
+  if (!contactId || !nickname || !pin) {
+    return res.status(400).json({ error: 'contactId, nickname, pin required' });
   }
-  if (findUserByEmail(email)) {
-    return res.status(409).json({ error: 'Email already registered' });
+  if (!/^[a-zA-Z0-9]{3,20}$/.test(contactId)) {
+    return res.status(400).json({ error: '联系号只能包含字母和数字，长度3-20位' });
   }
-  const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = { id: generateId(), email: email.toLowerCase(), nickname, passwordHash, language: 'zh', createdAt: Date.now() };
+  if (findUserByContactId(contactId)) {
+    return res.status(409).json({ error: '联系号已被使用' });
+  }
+  const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
+  const user = { id: generateId(), contactId: contactId.toLowerCase(), nickname, pinHash, language: 'zh', createdAt: Date.now() };
   const users = loadUsers();
   users.push(user);
   saveUsers(users);
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token, user: { id: user.id, nickname: user.nickname, language: user.language } });
+  res.json({ token, user: { id: user.id, contactId: user.contactId, nickname: user.nickname, language: user.language } });
 });
 
 app.post('/auth/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password) return res.status(400).json({ error: 'email and password required' });
-  const user = findUserByEmail(email);
+  const { contactId, pin } = req.body;
+  if (!contactId || !pin) return res.status(400).json({ error: 'contactId and pin required' });
+  const user = findUserByContactId(contactId);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-  const valid = await bcrypt.compare(password, user.passwordHash);
+  const valid = await bcrypt.compare(pin, user.pinHash);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
-  res.json({ token, user: { id: user.id, nickname: user.nickname, language: user.language } });
+  res.json({ token, user: { id: user.id, contactId: user.contactId, nickname: user.nickname, language: user.language } });
 });
 
 app.patch('/auth/profile', (req, res) => {
@@ -364,7 +372,7 @@ app.patch('/auth/profile', (req, res) => {
     if (nickname) user.nickname = nickname;
     if (language) user.language = language;
     saveUsers(users);
-    res.json({ id: user.id, nickname: user.nickname, language: user.language });
+    res.json({ id: user.id, contactId: user.contactId, nickname: user.nickname, language: user.language });
   } catch (e) {
     res.status(401).json({ error: 'Invalid token' });
   }
@@ -402,38 +410,22 @@ app.get('/rooms', authMiddleware, async (req, res) => {
   res.json(result);
 });
 
-// 创建邀请链接
-app.post('/rooms/invite', authMiddleware, (req, res) => {
-  const inviteToken = generateId() + generateId();
+// 添加好友（直接通过联系号建立房间）
+app.post('/rooms/add', authMiddleware, (req, res) => {
+  const { contactId } = req.body;
+  if (!contactId) return res.status(400).json({ error: 'contactId required' });
+  const partner = findUserByContactId(contactId);
+  if (!partner) return res.status(404).json({ error: '用户不存在' });
+  if (partner.id === req.userId) return res.status(400).json({ error: '不能添加自己' });
+  const existing = loadRooms().find(r =>
+    r.participants.includes(req.userId) && r.participants.includes(partner.id)
+  );
+  if (existing) return res.json({ roomId: existing.id, partner: { id: partner.id, nickname: partner.nickname }, alreadyExists: true });
+  const room = { id: generateId(), participants: [req.userId, partner.id], translateTo: [], createdAt: Date.now() };
   const rooms = loadRooms();
-  const room = {
-    id: generateId(),
-    participants: [req.userId],
-    inviteToken,
-    translateTo: [],
-    createdAt: Date.now(),
-  };
   rooms.push(room);
   saveRooms(rooms);
-  const inviteUrl = `${req.protocol}://${req.get('host')}/invite.html?token=${inviteToken}`;
-  res.json({ inviteUrl, roomId: room.id });
-});
-
-// 接受邀请
-app.post('/rooms/join', authMiddleware, (req, res) => {
-  const { token } = req.body;
-  if (!token) return res.status(400).json({ error: 'token required' });
-  const rooms = loadRooms();
-  const room = rooms.find(r => r.inviteToken === token);
-  if (!room) return res.status(404).json({ error: 'Invite not found' });
-  if (room.participants.includes(req.userId)) return res.status(400).json({ error: 'Already in room' });
-  if (room.participants.length >= 2) return res.status(400).json({ error: 'Room is full' });
-  room.participants.push(req.userId);
-  delete room.inviteToken;
-  saveRooms(rooms);
-  const partnerId = room.participants.find(id => id !== req.userId);
-  const partner = findUserById(partnerId);
-  res.json({ roomId: room.id, partner: partner ? { id: partner.id, nickname: partner.nickname } : null });
+  res.json({ roomId: room.id, partner: { id: partner.id, nickname: partner.nickname } });
 });
 
 // 更新翻译设置
@@ -445,15 +437,6 @@ app.patch('/rooms/:roomId/translate', authMiddleware, (req, res) => {
   room.translateTo = translateTo || [];
   saveRooms(rooms);
   res.json({ ok: true });
-});
-
-// 获取邀请token信息（邀请页用）
-app.get('/rooms/invite/:token', (req, res) => {
-  const rooms = loadRooms();
-  const room = rooms.find(r => r.inviteToken === req.params.token);
-  if (!room) return res.status(404).json({ error: 'Invite not found' });
-  const inviter = findUserById(room.participants[0]);
-  res.json({ inviterNickname: inviter?.nickname || 'Someone', roomId: room.id });
 });
 
 // ─── Socket.io Auth Middleware ────────────────────────────────
