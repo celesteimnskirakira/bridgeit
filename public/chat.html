@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BridgeIt</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/mobile.css">
+  <style>
+    /* 聊天容器 */
+    .chat-wrap {
+      position: fixed; top: 56px; left: 0; right: 0; bottom: 60px;
+      overflow-y: auto; padding: 12px 12px 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* 消息气泡 */
+    .msg-row { display: flex; margin-bottom: 4px; }
+    .msg-row.mine { justify-content: flex-end; }
+    .msg-row.theirs { justify-content: flex-start; }
+
+    .bubble {
+      max-width: 72%; padding: 10px 14px;
+      border-radius: var(--bubble-radius); font-size: 0.92rem;
+      line-height: 1.5; word-break: break-word;
+      animation: fadeUp 0.25s ease;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .mine .bubble { background: var(--purple); color: white; border-bottom-right-radius: 4px; }
+    .theirs .bubble { background: white; color: var(--text); border-bottom-left-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+    /* 翻译文本（气泡内） */
+    .translation-text {
+      margin-top: 6px; padding-top: 6px;
+      border-top: 1px solid rgba(255,255,255,0.3);
+      font-size: 0.78rem; color: rgba(255,255,255,0.75); line-height: 1.4;
+    }
+    .theirs .translation-text {
+      border-top-color: rgba(0,0,0,0.08); color: #AAA;
+    }
+
+    /* 时间戳 */
+    .msg-time { font-size: 0.68rem; color: #CCC; margin: 0 6px 8px; align-self: flex-end; }
+
+    /* AI 洞察卡片 */
+    .ai-card {
+      margin: 0 0 12px 0; border-radius: 12px;
+      background: var(--ai-green-bg); overflow: hidden;
+      animation: fadeUp 0.3s ease;
+    }
+    .ai-card-header {
+      display: flex; align-items: center;
+      padding: 10px 14px; cursor: pointer; gap: 8px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .ai-icon { font-size: 1rem; }
+    .ai-summary { flex: 1; font-size: 0.83rem; color: #00695C;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-chevron { font-size: 0.75rem; color: #80CBC4; transition: transform 0.2s; }
+    .ai-card.expanded .ai-chevron { transform: rotate(180deg); }
+    .ai-card-body { display: none; padding: 0 14px 12px; }
+    .ai-card.expanded .ai-card-body { display: block; }
+    .ai-full-text { font-size: 0.85rem; color: #004D40; line-height: 1.6; margin-bottom: 8px; }
+    .ai-advice { font-size: 0.82rem; color: #00695C; line-height: 1.5; }
+    .ai-advice-item { padding: 4px 0; }
+    .ai-advice-item::before { content: '• '; color: var(--ai-green); }
+
+    /* Knowledge Bridge */
+    .kb-card {
+      margin-top: 8px; padding: 10px 12px;
+      background: white; border-radius: 10px;
+      border-left: 3px solid var(--ai-green);
+    }
+    .kb-label { font-size: 0.7rem; font-weight: 700; color: var(--ai-green); margin-bottom: 4px; }
+    .kb-topic { font-size: 0.82rem; font-weight: 600; color: #333; margin-bottom: 4px; }
+    .kb-fact { font-size: 0.78rem; color: #666; line-height: 1.4; margin-top: 4px; }
+    .kb-fact::before { content: '• '; }
+
+    /* 话题分隔线 */
+    .topic-break {
+      display: flex; align-items: center;
+      margin: 16px 0; gap: 10px;
+    }
+    .topic-break-line { flex: 1; height: 1px; background: #E0E0E0; }
+    .topic-break-label {
+      font-size: 0.72rem; color: #CCC; white-space: nowrap; padding: 0 4px;
+    }
+
+    /* 底部输入栏 */
+    .input-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 60px;
+      background: white; border-top: 1px solid var(--border);
+      display: flex; align-items: center;
+      padding: 0 12px; gap: 8px;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .topic-btn {
+      background: none; border: none;
+      font-size: 1.1rem; cursor: pointer; color: #CCC;
+      padding: 8px; border-radius: 8px; flex-shrink: 0;
+      transition: color 0.2s;
+    }
+    .topic-btn:active { color: var(--purple); }
+    .chat-input {
+      flex: 1; padding: 9px 14px;
+      border: 1.5px solid var(--border); border-radius: 22px;
+      font-size: 0.9rem; outline: none; background: var(--bg);
+      transition: border-color 0.2s;
+    }
+    .chat-input:focus { border-color: var(--purple); background: white; }
+    .send-btn {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: var(--purple); color: white;
+      border: none; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: opacity 0.2s;
+    }
+    .send-btn:disabled { opacity: 0.4; }
+
+    /* AI thinking */
+    .thinking-row { display: flex; margin-bottom: 8px; }
+    .thinking-bubble {
+      background: white; border-radius: 12px;
+      padding: 10px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    .dots span {
+      display: inline-block; width: 6px; height: 6px;
+      background: #CCC; border-radius: 50%; margin: 0 2px;
+      animation: dot 1.2s infinite;
+    }
+    .dots span:nth-child(2) { animation-delay: 0.2s; }
+    .dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes dot {
+      0%, 80%, 100% { transform: scale(0.4); opacity: 0.3; }
+      40% { transform: scale(1); opacity: 1; }
+    }
+
+    /* 顶栏右侧按钮 */
+    .topbar-btn {
+      background: none; border: none; font-size: 1.1rem;
+      cursor: pointer; color: #888; padding: 6px;
+    }
+
+    /* 翻译设置底部抽屉 */
+    .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; }
+    .drawer-overlay.open { display: block; }
+    .drawer { position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; border-radius: 20px 20px 0 0;
+      padding: 20px 20px 40px; z-index: 201; }
+    .drawer h3 { font-size: 1rem; margin-bottom: 16px; }
+    .lang-check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .lang-check {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px; border: 2px solid var(--border);
+      border-radius: 10px; cursor: pointer; transition: all 0.15s;
+    }
+    .lang-check.checked { border-color: var(--purple); background: var(--purple-bg); }
+    .lang-check input { display: none; }
+    .lang-check-label { font-size: 0.88rem; }
+    .lang-check.checked .lang-check-label { color: var(--purple); font-weight: 600; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="back-btn" onclick="window.location.href='/home.html'">‹</button>
+  <h1 id="partner-name">...</h1>
+  <button class="topbar-btn" onclick="openTranslateDrawer()" title="翻译设置">🌐</button>
+</div>
+
+<div class="chat-wrap" id="chat-wrap"></div>
+
+<div class="input-bar">
+  <button class="topic-btn" onclick="sendTopicBreak()" title="新话题">↺</button>
+  <input type="text" class="chat-input" id="chat-input"
+    placeholder="输入消息..." autocomplete="off"
+    onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}">
+  <button class="send-btn" id="send-btn" onclick="sendMessage()">▶</button>
+</div>
+
+<!-- 翻译设置抽屉 -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeTranslateDrawer()">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <h3>🌐 消息翻译</h3>
+    <div class="lang-check-grid" id="lang-grid"></div>
+    <button class="btn-primary" onclick="saveTranslate()">保存</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const LANGS = [
+  { code: 'zh', label: '🇨🇳 中文' },
+  { code: 'en', label: '🇺🇸 English' },
+  { code: 'es', label: '🇪🇸 Español' },
+  { code: 'ru', label: '🇷🇺 Русский' },
+  { code: 'fr', label: '🇫🇷 Français' },
+];
+
+const token = localStorage.getItem('bridgeit_token');
+const user = JSON.parse(localStorage.getItem('bridgeit_user') || '{}');
+const roomId = localStorage.getItem('bridgeit_current_room');
+const partnerName = localStorage.getItem('bridgeit_partner_name') || '对方';
+
+if (!token || !roomId) window.location.href = '/home.html';
+
+document.getElementById('partner-name').textContent = partnerName;
+
+let translateTo = [];
+
+const socket = io({ auth: { token } });
+
+socket.on('connect', () => {
+  socket.emit('join-room', roomId, ({ messages, error }) => {
+    if (error) { window.location.href = '/home.html'; return; }
+    messages.forEach(msg => renderItem(msg, false));
+    scrollToBottom();
+  });
+});
+
+socket.on('connect_error', () => window.location.href = '/login.html');
+socket.on('new-message', msg => { if (msg.roomId === roomId) renderItem(msg, true); });
+socket.on('ai-thinking', ({ roomId: rid, thinking }) => {
+  if (rid !== roomId) return;
+  if (thinking) showThinking(); else hideThinking();
+});
+socket.on('ai-analysis', analysis => {
+  if (analysis.roomId !== roomId) return;
+  hideThinking();
+  if (analysis.receiverId === user.id) renderAICard(analysis);
+});
+socket.on('topic-break', msg => { if (msg.roomId === roomId) renderItem(msg, true); });
+
+function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.focus();
+  socket.emit('send-message', { roomId, text });
+}
+
+function sendTopicBreak() {
+  if (!confirm('开启新话题？AI将从这里重新开始分析上下文。')) return;
+  socket.emit('new-topic-break', { roomId });
+}
+
+function renderItem(msg, animate) {
+  if (msg.type === 'topic-break') {
+    renderTopicBreak(animate);
+    return;
+  }
+  const isMe = (msg.senderId === user.id);
+  const wrap = document.getElementById('chat-wrap');
+
+  const row = document.createElement('div');
+  row.className = 'msg-row ' + (isMe ? 'mine' : 'theirs');
+  if (!animate) row.style.animation = 'none';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.id = 'msg-' + msg.id;
+
+  let html = escHtml(msg.text);
+
+  if (msg.translations) {
+    const lines = Object.entries(msg.translations)
+      .filter(([lang, text]) => text && text !== msg.text)
+      .map(([lang, text]) => `<div class="translation-line">${escHtml(text)}</div>`);
+    if (lines.length > 0) {
+      html += `<div class="translation-text">${lines.join('')}</div>`;
+    }
+  }
+
+  bubble.innerHTML = html;
+  row.appendChild(bubble);
+
+  const time = document.createElement('div');
+  time.className = 'msg-time';
+  time.textContent = formatTime(msg.timestamp);
+  row.appendChild(time);
+
+  wrap.appendChild(row);
+  if (animate) scrollToBottom();
+}
+
+function renderTopicBreak(animate) {
+  const wrap = document.getElementById('chat-wrap');
+  const div = document.createElement('div');
+  div.className = 'topic-break';
+  if (!animate) div.style.animation = 'none';
+  div.innerHTML = '<div class="topic-break-line"></div><div class="topic-break-label">新话题</div><div class="topic-break-line"></div>';
+  wrap.appendChild(div);
+  if (animate) scrollToBottom();
+}
+
+function renderAICard(analysis) {
+  const wrap = document.getElementById('chat-wrap');
+
+  const card = document.createElement('div');
+  card.className = 'ai-card';
+
+  const summary = (analysis.insight || '').slice(0, 40) + ((analysis.insight||'').length > 40 ? '…' : '');
+
+  let bodyHtml = `<div class="ai-full-text">${escHtml(analysis.insight || '')}</div>`;
+
+  if (Array.isArray(analysis.advice) && analysis.advice.length) {
+    bodyHtml += `<div class="ai-advice">` +
+      analysis.advice.map(a => `<div class="ai-advice-item">${escHtml(a)}</div>`).join('') +
+      `</div>`;
+  }
+
+  if (analysis.knowledgeBridge?.topic) {
+    const kb = analysis.knowledgeBridge;
+    const facts = Array.isArray(kb.facts) ? kb.facts : [];
+    bodyHtml += `<div class="kb-card">
+      <div class="kb-label">知识桥</div>
+      <div class="kb-topic">${escHtml(kb.topic)}</div>
+      ${facts.map(f => `<div class="kb-fact">${escHtml(f)}</div>`).join('')}
+    </div>`;
+  }
+
+  card.innerHTML = `
+    <div class="ai-card-header" onclick="toggleAI(this.parentElement)">
+      <span class="ai-icon">💡</span>
+      <span class="ai-summary">${escHtml(summary)}</span>
+      <span class="ai-chevron">▾</span>
+    </div>
+    <div class="ai-card-body">${bodyHtml}</div>`;
+
+  wrap.appendChild(card);
+  scrollToBottom();
+}
+
+function toggleAI(card) {
+  card.classList.toggle('expanded');
+}
+
+function showThinking() {
+  if (document.getElementById('thinking-indicator')) return;
+  const wrap = document.getElementById('chat-wrap');
+  const div = document.createElement('div');
+  div.className = 'thinking-row';
+  div.id = 'thinking-indicator';
+  div.innerHTML = '<div class="thinking-bubble"><div class="dots"><span></span><span></span><span></span></div></div>';
+  wrap.appendChild(div);
+  scrollToBottom();
+}
+
+function hideThinking() {
+  const el = document.getElementById('thinking-indicator');
+  if (el) el.remove();
+}
+
+async function openTranslateDrawer() {
+  try {
+    const res = await fetch('/rooms', { headers: { Authorization: 'Bearer ' + token } });
+    const rooms = await res.json();
+    const room = rooms.find(r => r.id === roomId);
+    translateTo = room?.translateTo || [];
+  } catch (e) {}
+
+  const grid = document.getElementById('lang-grid');
+  grid.innerHTML = LANGS.map(l => `
+    <label class="lang-check ${translateTo.includes(l.code) ? 'checked' : ''}" onclick="toggleLang('${l.code}', this)">
+      <input type="checkbox" ${translateTo.includes(l.code) ? 'checked' : ''}>
+      <span class="lang-check-label">${l.label}</span>
+    </label>`).join('');
+
+  document.getElementById('drawer-overlay').classList.add('open');
+}
+
+function toggleLang(code, el) {
+  if (translateTo.includes(code)) {
+    translateTo = translateTo.filter(l => l !== code);
+    el.classList.remove('checked');
+  } else {
+    translateTo.push(code);
+    el.classList.add('checked');
+  }
+}
+
+async function saveTranslate() {
+  try {
+    await fetch(`/rooms/${roomId}/translate`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ translateTo }),
+    });
+    closeTranslateDrawer();
+  } catch (e) { alert('保存失败'); }
+}
+
+function closeTranslateDrawer() {
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+
+function scrollToBottom() {
+  const wrap = document.getElementById('chat-wrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function formatTime(ts) {
+  const d = new Date(ts);
+  return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+}
+
+function escHtml(t) {
+  if (!t) return '';
+  const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
