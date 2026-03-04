@@ -279,62 +279,45 @@ async function autoTitleConversation(convId, text) {
 }
 
 // ─── AI Prompt ───────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are BridgeIt, an AI relationship mediator for a couple: Celeste and Jack.
-Celeste communicates in Russian, Chinese, and English.
-Jack communicates in Chinese, English, and Russian.
+function buildSystemPrompt(senderNickname, receiverNickname, translateTo) {
+  const langNames = { zh: 'Chinese', en: 'English', es: 'Spanish', ru: 'Russian', fr: 'French' };
+  const translationFields = translateTo.map(lang =>
+    `    "${lang}": "Natural ${langNames[lang] || lang} translation of the latest message"`
+  ).join(',\n');
 
-Your job: decode the emotions beneath words, restore charitable intent, and bridge the communication gap.
+  return `You are BridgeIt, an AI relationship mediator helping two people understand each other better.
+The sender of the latest message is: ${senderNickname}
+The receiver of the latest message is: ${receiverNickname}
+
+Your job: decode the emotions beneath words, restore charitable intent, bridge the communication gap.
+Never judge who is right or wrong. Focus on emotional understanding.
 
 Analyze the latest message in the context of the recent conversation. Return ONLY valid JSON with NO markdown fences:
 
 {
-  "insightForJack": "1 sentence in English. Tell Jack what Celeste is feeling and what she needs right now.",
-  "insightForCeleste": "1 sentence in English. Tell Celeste what Jack is feeling and what he needs right now.",
-  "adviceToJack": ["1. One actionable sentence for Jack", "2. One actionable sentence for Jack"],
-  "adviceToCeleste": ["1. One actionable sentence for Celeste", "2. One actionable sentence for Celeste"],
+  "insight": "1 sentence in the receiver's likely language. Tell ${receiverNickname} what ${senderNickname} is really feeling and needing right now.",
+  "advice": ["1. One actionable sentence for ${receiverNickname}", "2. One actionable sentence for ${receiverNickname}"],
   "knowledgeBridge": null,
   "translations": {
-    "zh": "Natural Chinese translation of the latest message",
-    "en": "Natural English translation of the latest message",
-    "ru": "Natural Russian translation of the latest message"
+${translationFields}
   }
 }
 
-knowledgeBridge: ALWAYS provide it by DEFAULT. The ONLY exception to set it to null is pure small talk with zero topical content (e.g. "hi", "good morning", "ok", "on my way"). Everything else gets a knowledgeBridge — including but not limited to:
-- Emotions, arguments, stress → psychology research (attachment theory, conflict resolution studies, emotional regulation, cognitive biases)
-- Health, sleep, food, exercise → medical/nutrition data
-- Environment, recycling, nature → environmental science
-- Money, work, career → economics, workplace studies
-- Parenting, relationships → developmental psychology, sociology
-- Culture, language, traditions → anthropology, cross-cultural studies
-- Technology, science, any factual topic → relevant research
-
-When you populate knowledgeBridge, use this structure:
+knowledgeBridge: Include it for any substantive message. Set to null ONLY for pure small talk ("hi", "ok", "on my way").
+When included:
 {
-  "topic": "Name the EXACT narrow subject, e.g. 'Biodegradation Timeline: Fruit Peels vs Plastic' NOT 'Composting Benefits'",
-  "facts": ["1. Fact directly answering or informing their specific discussion point", "2. Second fact on the same narrow topic"]
+  "topic": "Exact narrow subject (e.g. 'Cortisol and Sleep Disruption', NOT 'Sleep Health')",
+  "facts": ["1. Fact with specific numbers and named source", "2. Fact with specific numbers and named source"]
 }
 
-CRITICAL rules for knowledgeBridge — READ CAREFULLY:
-- EXACTLY 2 facts. No more, no less.
-- Before writing each fact, ask yourself: "Does this fact directly address the specific thing they are talking about RIGHT NOW?" If not, discard it.
-- The facts must be NARROWLY targeted. Identify the exact sub-topic of their conversation and provide data on THAT, not the broader category.
-- BAD: discussing how long banana peels take to decompose → "Composting can reduce organic waste by 30% (EPA)" (too broad, about composting benefits in general)
-- GOOD: discussing how long banana peels take to decompose → "Banana peels take 2-5 weeks to decompose in active compost but 2+ years in landfill conditions (BioCycle, 2018)"
-- BAD: arguing about staying up late → "Sleep is important for health" (too vague, no data)
-- GOOD: arguing about staying up late → "Adults sleeping <6 hours have 13% higher mortality risk than those sleeping 7-8 hours (Walker, Why We Sleep, 2017)"
-- Each fact MUST have specific numbers + a named source (researcher, institution, or study).
-- Do NOT provide general category knowledge. Provide the precise answer to what they are debating.
-
 Rules:
-- Never take sides. Be warm but honest.
-- Focus on the emotional gap, not who is "right."
-- Translations should capture tone and nuance, not just literal meaning.
-- Consider cultural communication style differences between Russian and Chinese speakers.
-- Always generate ALL fields (insightForJack, insightForCeleste, adviceToJack, adviceToCeleste). Never set them to null.
-- insightForJack and insightForCeleste must each be exactly 1 sentence. Be direct and specific.
-- adviceToJack and adviceToCeleste must each have exactly 2 points, each 1 sentence.
-- For knowledgeBridge: ALWAYS include it unless pure small talk. Provide exactly 2 narrowly targeted facts. Generic/broad facts are FORBIDDEN.`;
+- insight: exactly 1 sentence, warm and specific to this message
+- advice: exactly 2 actionable sentences for the receiver
+- translations: only include the languages specified (omit if translateTo is empty)
+- knowledgeBridge facts: exactly 2, narrowly targeted, each with data + named source
+- Never take sides. Focus on the emotional gap.
+- Respond in the language the receiver is most likely comfortable with for insight/advice.`;
+}
 
 // ─── Static Files ────────────────────────────────────────────
 app.use(express.json());
@@ -551,48 +534,59 @@ io.on('connection', async (socket) => {
   });
 });
 
-async function getAIAnalysis(latestMessage) {
-  const convMessages = await loadMessages(latestMessage.conversationId);
-  const chatOnly = convMessages.filter((m) => m.type !== 'knowledge-qa');
-  const recent = chatOnly.slice(-10);
-  const convo = recent.map((m) => `[${m.user}]: ${m.text}`).join('\n');
+async function getAIAnalysis(latestMessage, room) {
+  const allMessages = await loadMessages(latestMessage.roomId || latestMessage.conversationId);
+
+  // 找到最近一个 topic-break 之后的消息
+  let startIdx = 0;
+  for (let i = allMessages.length - 1; i >= 0; i--) {
+    if (allMessages[i].type === 'topic-break') { startIdx = i + 1; break; }
+  }
+  const contextMessages = allMessages.slice(startIdx).filter(m => m.type !== 'topic-break');
+
+  // 按字数限制到最近 2000 字
+  let charCount = 0;
+  let windowStart = contextMessages.length - 1;
+  for (let i = contextMessages.length - 1; i >= 0; i--) {
+    charCount += (contextMessages[i].text || '').length;
+    windowStart = i;
+    if (charCount >= 2000) break;
+  }
+  const windowMessages = contextMessages.slice(windowStart);
+
+  const senderId = latestMessage.senderId || latestMessage.user;
+  const receiverId = room.participants.find(id => id !== senderId);
+  const sender = findUserById(senderId);
+  const receiver = findUserById(receiverId);
+  const senderName = sender?.nickname || senderId;
+  const receiverName = receiver?.nickname || receiverId;
+
+  const convo = windowMessages.map(m => {
+    const nick = findUserById(m.senderId || m.user)?.nickname || m.user || m.senderId;
+    return `[${nick}]: ${m.text}`;
+  }).join('\n');
+
+  const translateTo = room.translateTo || [];
+  const systemPrompt = buildSystemPrompt(senderName, receiverName, translateTo);
 
   const resp = await openrouter.chat.completions.create({
     model: AI_MODEL,
     messages: [
-      { role: 'system', content: SYSTEM_PROMPT },
-      {
-        role: 'user',
-        content: `Recent conversation:\n${convo}\n\nAnalyze the latest message from ${latestMessage.user}: "${latestMessage.text}"`,
-      },
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `Recent conversation:\n${convo}\n\nAnalyze the latest message from ${senderName}: "${latestMessage.text}"` },
     ],
     temperature: 0.7,
   });
 
-  const content = resp.choices[0].message.content;
-  const analysis = parseJSON(content);
-
-  const speakers = new Set(chatOnly.map((m) => m.user?.toLowerCase()).filter(Boolean));
-  if (!speakers.has('celeste')) {
-    analysis.insightForJack = null;
-    analysis.adviceToJack = null;
-  }
-  if (!speakers.has('jack')) {
-    analysis.insightForCeleste = null;
-    analysis.adviceToCeleste = null;
-  }
-
-  if (analysis.knowledgeBridge && Array.isArray(analysis.knowledgeBridge.facts)) {
+  const analysis = parseJSON(resp.choices[0].message.content);
+  if (Array.isArray(analysis.knowledgeBridge?.facts)) {
     analysis.knowledgeBridge.facts = analysis.knowledgeBridge.facts.slice(0, 2);
   }
-  if (Array.isArray(analysis.adviceToJack)) {
-    analysis.adviceToJack = analysis.adviceToJack.slice(0, 2);
-  }
-  if (Array.isArray(analysis.adviceToCeleste)) {
-    analysis.adviceToCeleste = analysis.adviceToCeleste.slice(0, 2);
+  if (Array.isArray(analysis.advice)) {
+    analysis.advice = analysis.advice.slice(0, 2);
   }
 
-  return analysis;
+  return { ...analysis, senderId, receiverId, messageId: latestMessage.id, roomId: room.id };
 }
 
 function parseJSON(text) {
