@@ -1,0 +1,85 @@
+/* BridgeIt 移动端共享样式 */
+:root {
+  --purple: #7B1FA2;
+  --purple-bg: #F3E5F5;
+  --blue: #1976D2;
+  --blue-bg: #E3F2FD;
+  --bg: #F5F7FA;
+  --text: #2C3E50;
+  --border: #E0E0E0;
+  --ai-green: #26A69A;
+  --ai-green-bg: #E0F2F1;
+  --radius: 16px;
+  --bubble-radius: 18px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, 'PingFang SC', 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 顶栏 */
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: 56px;
+  background: white;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 16px; gap: 12px;
+  z-index: 100;
+}
+.topbar .back-btn {
+  background: none; border: none;
+  font-size: 1.4rem; cursor: pointer;
+  color: var(--purple); padding: 4px;
+}
+.topbar h1 {
+  flex: 1; font-size: 1rem; font-weight: 600;
+  background: linear-gradient(135deg, var(--purple), var(--blue));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+/* 主内容区（留出顶栏空间）*/
+.main-content {
+  position: fixed; top: 56px; left: 0; right: 0; bottom: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 按钮 */
+.btn-primary {
+  width: 100%; padding: 14px;
+  background: var(--purple); color: white;
+  border: none; border-radius: 12px;
+  font-size: 1rem; font-weight: 600;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.btn-primary:active { opacity: 0.8; }
+.btn-primary.blue { background: var(--blue); }
+
+/* 输入框 */
+.input-field {
+  width: 100%; padding: 12px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px; font-size: 0.95rem;
+  outline: none; transition: border-color 0.2s;
+  background: white;
+}
+.input-field:focus { border-color: var(--purple); }
+
+/* 卡片 */
+.card {
+  background: white;
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* 底部安全区域适配 */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
