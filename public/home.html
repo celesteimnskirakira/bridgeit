@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BridgeIt</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/mobile.css">
+  <style>
+    .room-list { padding: 8px 0; }
+    .room-item {
+      display: flex; align-items: center;
+      padding: 14px 16px; background: white;
+      border-bottom: 1px solid #F5F5F5;
+      cursor: pointer; gap: 12px;
+      transition: background 0.15s;
+    }
+    .room-item:active { background: #F9F9F9; }
+    .avatar {
+      width: 48px; height: 48px; border-radius: 50%;
+      background: linear-gradient(135deg, #7B1FA2, #1976D2);
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-weight: 700; font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    .room-info { flex: 1; min-width: 0; }
+    .room-name { font-weight: 600; font-size: 0.95rem; }
+    .room-preview { font-size: 0.82rem; color: #999; margin-top: 2px;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .room-time { font-size: 0.75rem; color: #CCC; flex-shrink: 0; }
+    .fab {
+      position: fixed; bottom: 24px; right: 20px;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: var(--purple); color: white;
+      border: none; font-size: 1.8rem;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(123,31,162,0.4);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .empty-state { text-align: center; padding: 60px 24px; color: #CCC; }
+    .empty-state h3 { font-size: 1.1rem; margin-bottom: 8px; color: #BBB; }
+
+    /* 个人设置抽屉 */
+    .settings-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); z-index: 200;
+    }
+    .settings-overlay.open { display: block; }
+    .settings-drawer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: white; border-radius: 20px 20px 0 0;
+      padding: 24px 20px 40px;
+    }
+    .settings-drawer h3 { font-size: 1rem; margin-bottom: 20px; color: #333; }
+    .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .lang-btn {
+      padding: 12px; border: 2px solid var(--border);
+      border-radius: 10px; background: white;
+      font-size: 0.88rem; cursor: pointer; transition: all 0.15s;
+    }
+    .lang-btn.selected { border-color: var(--purple); background: var(--purple-bg); color: var(--purple); font-weight: 600; }
+    .logout-btn {
+      width: 100%; padding: 12px;
+      background: none; border: 1.5px solid #EEE;
+      border-radius: 10px; color: #999;
+      font-size: 0.9rem; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>BridgeIt</h1>
+  <button onclick="openSettings()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;" id="avatar-btn">👤</button>
+</div>
+
+<div class="main-content">
+  <div class="room-list" id="room-list">
+    <div class="empty-state">
+      <h3>还没有对话</h3>
+      <p>点右下角 + 邀请对方开始</p>
+    </div>
+  </div>
+</div>
+
+<button class="fab" onclick="createInvite()">+</button>
+
+<!-- 设置抽屉 -->
+<div class="settings-overlay" id="settings-overlay" onclick="closeSettings()">
+  <div class="settings-drawer" onclick="event.stopPropagation()">
+    <h3>界面语言</h3>
+    <div class="lang-grid" id="lang-grid">
+      <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">🇨🇳 中文</button>
+      <button class="lang-btn" data-lang="en" onclick="setLang('en')">🇺🇸 English</button>
+      <button class="lang-btn" data-lang="es" onclick="setLang('es')">🇪🇸 Español</button>
+      <button class="lang-btn" data-lang="ru" onclick="setLang('ru')">🇷🇺 Русский</button>
+      <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">🇫🇷 Français</button>
+    </div>
+    <button class="logout-btn" onclick="logout()">退出登录</button>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('bridgeit_token');
+  const user = JSON.parse(localStorage.getItem('bridgeit_user') || '{}');
+  if (!token) window.location.href = '/login.html';
+
+  document.getElementById('avatar-btn').textContent = user.nickname?.[0]?.toUpperCase() || '👤';
+
+  async function loadRooms() {
+    try {
+      const res = await fetch('/rooms', { headers: { Authorization: 'Bearer ' + token } });
+      if (!res.ok) { logout(); return; }
+      const rooms = await res.json();
+      renderRooms(rooms);
+    } catch (e) { console.error(e); }
+  }
+
+  function renderRooms(rooms) {
+    const list = document.getElementById('room-list');
+    if (rooms.length === 0) {
+      list.innerHTML = '<div class="empty-state"><h3>还没有对话</h3><p>点右下角 + 邀请对方开始</p></div>';
+      return;
+    }
+    list.innerHTML = rooms.map(room => {
+      const name = room.partner?.nickname || '对方';
+      const initial = name[0].toUpperCase();
+      const preview = room.lastMessage?.text ? escHtml(room.lastMessage.text.slice(0, 30)) : '开始聊天';
+      const time = room.lastMessage?.timestamp ? formatTime(room.lastMessage.timestamp) : '';
+      return `<div class="room-item" onclick="enterRoom('${room.id}', '${escHtml(name)}')">
+        <div class="avatar">${initial}</div>
+        <div class="room-info">
+          <div class="room-name">${escHtml(name)}</div>
+          <div class="room-preview">${preview}</div>
+        </div>
+        <div class="room-time">${time}</div>
+      </div>`;
+    }).join('');
+  }
+
+  function enterRoom(roomId, partnerName) {
+    localStorage.setItem('bridgeit_current_room', roomId);
+    localStorage.setItem('bridgeit_partner_name', partnerName);
+    window.location.href = '/chat.html';
+  }
+
+  async function createInvite() {
+    try {
+      const res = await fetch('/rooms/invite', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + token }
+      });
+      const data = await res.json();
+      if (navigator.share) {
+        navigator.share({ title: 'BridgeIt 邀请', url: data.inviteUrl });
+      } else {
+        await navigator.clipboard.writeText(data.inviteUrl);
+        alert('邀请链接已复制！发给对方吧');
+      }
+    } catch (e) { alert('创建邀请失败，请重试'); }
+  }
+
+  function openSettings() {
+    document.getElementById('settings-overlay').classList.add('open');
+    const lang = user.language || 'zh';
+    document.querySelectorAll('.lang-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.lang === lang);
+    });
+  }
+
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+  }
+
+  async function setLang(lang) {
+    try {
+      await fetch('/auth/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+        body: JSON.stringify({ language: lang }),
+      });
+      user.language = lang;
+      localStorage.setItem('bridgeit_user', JSON.stringify(user));
+      document.querySelectorAll('.lang-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.dataset.lang === lang);
+      });
+    } catch (e) { alert('保存失败'); }
+  }
+
+  function logout() {
+    localStorage.removeItem('bridgeit_token');
+    localStorage.removeItem('bridgeit_user');
+    window.location.href = '/login.html';
+  }
+
+  function formatTime(ts) {
+    const d = new Date(ts), now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0');
+    }
+    return (d.getMonth()+1) + '/' + d.getDate();
+  }
+
+  function escHtml(t) {
+    const d = document.createElement('div'); d.textContent = t; return d.innerHTML;
+  }
+
+  loadRooms();
+</script>
+</body>
+</html>
