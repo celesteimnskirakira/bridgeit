@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BridgeIt - 注册</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/css/mobile.css">
+  <style>
+    .login-wrap {
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px;
+      background: linear-gradient(135deg, #7B1FA2 0%, #1976D2 100%);
+    }
+    .login-card { background: white; border-radius: 24px; padding: 36px 28px; width: 100%; max-width: 380px; }
+    .logo { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 4px;
+      background: linear-gradient(135deg, #7B1FA2, #1976D2);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .slogan { text-align: center; color: #999; font-size: 0.85rem; margin-bottom: 28px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 0.85rem; color: #666; margin-bottom: 6px; }
+    .error { color: #F44336; font-size: 0.82rem; margin-bottom: 12px; display: none; }
+    .switch-link { text-align: center; margin-top: 16px; font-size: 0.88rem; color: #888; }
+    .switch-link a { color: #7B1FA2; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="logo">BridgeIt</div>
+    <div class="slogan">理解互相，舍弃对错</div>
+    <div class="form-group">
+      <label>昵称</label>
+      <input type="text" id="nickname" class="input-field" placeholder="你的名字" autocomplete="nickname">
+    </div>
+    <div class="form-group">
+      <label>邮箱</label>
+      <input type="email" id="email" class="input-field" placeholder="your@email.com" autocomplete="email">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="password" class="input-field" placeholder="至少6位" autocomplete="new-password">
+    </div>
+    <div class="error" id="error-msg"></div>
+    <button class="btn-primary" id="reg-btn" onclick="doRegister()">创建账号</button>
+    <div class="switch-link">已有账号？<a href="/login.html">登录</a></div>
+  </div>
+</div>
+<script>
+  if (localStorage.getItem('bridgeit_token')) window.location.href = '/home.html';
+
+  async function doRegister() {
+    const nickname = document.getElementById('nickname').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    if (!nickname || !email || !password) { showError('请填写所有字段'); return; }
+    if (password.length < 6) { showError('密码至少6位'); return; }
+
+    const btn = document.getElementById('reg-btn');
+    btn.disabled = true; btn.textContent = '注册中...';
+
+    try {
+      const res = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, nickname, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { showError(data.error || '注册失败'); return; }
+      localStorage.setItem('bridgeit_token', data.token);
+      localStorage.setItem('bridgeit_user', JSON.stringify(data.user));
+      const pending = localStorage.getItem('bridgeit_pending_invite');
+      if (pending) {
+        localStorage.removeItem('bridgeit_pending_invite');
+        window.location.href = '/invite.html?token=' + pending;
+      } else {
+        window.location.href = '/home.html';
+      }
+    } catch (e) {
+      showError('网络错误，请重试');
+    } finally {
+      btn.disabled = false; btn.textContent = '创建账号';
+    }
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('error-msg');
+    el.textContent = msg; el.style.display = 'block';
+  }
+</script>
+</body>
+</html>
