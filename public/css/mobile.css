@@ -11,6 +11,13 @@
   --ai-green-bg: #E0F2F1;
   --radius: 16px;
   --bubble-radius: 18px;
+  /* Dark theme */
+  --dark-bg: #0d0d1a;
+  --glass-surface: rgba(13,13,26,0.7);
+  --glass-border: rgba(255,255,255,0.07);
+  --accent-purple: linear-gradient(135deg, #9C27B0, #5C6BC0);
+  --accent-gold: #FFB300;
+  --partner-bubble: #ffffff;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -83,3 +90,15 @@ body {
 
 /* 底部安全区域适配 */
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
+
+/* Shared blob animations */
+@keyframes blobFloat1 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  33%     { transform: translate(35px,55px) scale(1.05); }
+  66%     { transform: translate(-15px,30px) scale(0.97); }
+}
+@keyframes blobFloat2 {
+  0%,100% { transform: translate(0,0) scale(1); }
+  40%     { transform: translate(-40px,-35px) scale(1.08); }
+  70%     { transform: translate(20px,-50px) scale(0.95); }
+}
