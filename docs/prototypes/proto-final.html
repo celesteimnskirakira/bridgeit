@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BridgeIt · 最终设计原型</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;
+      background: #060610; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 24px 0 48px; gap: 14px;
+    }
+    .top-label { color: rgba(255,255,255,0.35); font-size: 0.72rem; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    /* ── Page toggle ── */
+    .page-toggle {
+      display: flex; gap: 0; border-radius: 12px; overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .toggle-btn {
+      padding: 8px 20px; background: rgba(255,255,255,0.05); border: none;
+      color: rgba(255,255,255,0.4); font-size: 0.8rem; font-family: inherit;
+      cursor: pointer; transition: all 0.2s; font-weight: 600;
+    }
+    .toggle-btn.active { background: rgba(255,255,255,0.12); color: white; }
+    .online-toggle {
+      display: flex; align-items: center; gap: 8px;
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 6px 14px; cursor: pointer;
+      color: rgba(255,255,255,0.5); font-size: 0.78rem; font-family: inherit;
+      transition: all 0.2s;
+    }
+    .online-toggle.on { color: rgba(255,255,255,0.8); border-color: rgba(255,179,0,0.3); }
+    .controls { display: flex; gap: 10px; align-items: center; }
+
+    /* ── Phone shell ── */
+    .phone {
+      width: 375px; height: 760px; position: relative;
+      overflow: hidden; border-radius: 44px;
+      box-shadow: 0 40px 120px rgba(0,0,0,0.7), inset 0 0 0 1.5px rgba(255,255,255,0.1);
+    }
+
+    /* ── Background ── */
+    .bg { position: absolute; inset: 0; background: #0d0d1a; }
+    .blob {
+      position: absolute; border-radius: 50%; pointer-events: none;
+      filter: blur(1px);
+    }
+    .blob-purple {
+      width: 320px; height: 320px;
+      background: radial-gradient(circle, rgba(123,31,162,0.42) 0%, transparent 68%);
+      top: -100px; left: -80px;
+      animation: blobFloat1 16s ease-in-out infinite;
+    }
+    .blob-yellow {
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(255,179,0,0.32) 0%, transparent 68%);
+      bottom: 40px; right: -80px;
+      animation: blobFloat2 20s ease-in-out infinite;
+    }
+    @keyframes blobFloat1 { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(35px,55px) scale(1.05)} 66%{transform:translate(-15px,30px) scale(0.97)} }
+    @keyframes blobFloat2 { 0%,100%{transform:translate(0,0) scale(1)} 40%{transform:translate(-40px,-35px) scale(1.08)} 70%{transform:translate(20px,-50px) scale(0.95)} }
+
+    /* ═══════════════ PAGE: CHAT ═══════════════ */
+    .page { position: absolute; inset: 0; display: none; flex-direction: column; }
+    .page.active { display: flex; }
+
+    /* Topbar */
+    .topbar {
+      height: 64px; flex-shrink: 0; z-index: 10;
+      background: rgba(13,13,26,0.6);
+      backdrop-filter: blur(32px) saturate(180%); -webkit-backdrop-filter: blur(32px) saturate(180%);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; padding: 0 18px; gap: 0;
+    }
+    .back-btn { color: rgba(255,255,255,0.5); font-size: 0.9rem; background: none; border: none; font-family: inherit; flex-shrink: 0; padding-right: 10px; }
+    .topbar-center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .topbar-name { color: white; font-weight: 700; font-size: 1.05rem; letter-spacing: -0.3px; }
+    .topbar-dots { display: flex; align-items: center; gap: 5px; height: 8px; }
+    .tdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; transition: opacity 0.5s; }
+    .tdot-mine { background: linear-gradient(135deg, #ce93d8, #7986cb); }
+    .tdot-theirs { background: rgba(255,255,255,0.5); }
+
+    /* Offline line */
+    .tline-offline {
+      width: 20px; height: 1px;
+      background: rgba(255,255,255,0.12); border-radius: 1px;
+      transition: opacity 0.5s;
+    }
+    /* Online flowing dots */
+    .tline-online {
+      width: 24px; height: 8px; position: relative; display: none;
+    }
+    .tline-track {
+      position: absolute; top: 50%; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, rgba(179,136,255,0.25), rgba(255,213,79,0.2));
+      transform: translateY(-50%);
+    }
+    .tflow-dot {
+      position: absolute; top: 50%; width: 3px; height: 3px; border-radius: 50%;
+      background: rgba(255,213,79,0.9); transform: translate(-50%,-50%);
+      animation: tflow 1.5s ease-in-out infinite;
+    }
+    .tflow-dot:nth-child(2) { animation-delay: 0.5s; }
+    .tflow-dot:nth-child(3) { animation-delay: 1s; }
+    @keyframes tflow { 0%{left:0%;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{left:100%;opacity:0} }
+
+    .topbar-icon { color: rgba(255,255,255,0.35); font-size: 1rem; flex-shrink: 0; }
+
+    /* Chat scroll area */
+    .chat-area {
+      flex: 1; overflow-y: auto; padding: 14px 10px 6px;
+      display: flex; flex-direction: column; gap: 0;
+      position: relative;
+    }
+    /* Center spine */
+    .spine {
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 1px;
+      transform: translateX(-50%); pointer-events: none; z-index: 0;
+      background: linear-gradient(180deg,
+        transparent 0%,
+        rgba(156,39,176,0.18) 15%,
+        rgba(180,80,180,0.15) 50%,
+        rgba(255,179,0,0.15) 80%,
+        transparent 100%
+      );
+    }
+
+    /* Name labels */
+    .nlabel { font-size: 0.6rem; margin-bottom: 3px; letter-spacing: 0.2px; position: relative; z-index: 1; }
+    .nlabel.mine { text-align: right; margin-right: calc(50% + 10px); color: rgba(179,136,255,0.5); }
+    .nlabel.theirs { margin-left: calc(50% + 10px); color: rgba(255,255,255,0.28); }
+
+    .msg-row { display: flex; align-items: flex-end; margin-bottom: 8px; position: relative; z-index: 1; }
+
+    /* Mine: purple, LEFT side */
+    .bub-mine {
+      margin-left: auto; margin-right: calc(50% + 10px);
+      max-width: calc(48% - 10px); min-width: 60px;
+      padding: 10px 13px; text-align: right;
+      background: linear-gradient(140deg, rgba(156,39,176,0.78), rgba(92,107,192,0.72));
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(179,136,255,0.32); color: white;
+      border-radius: 16px 16px 3px 16px; font-size: 0.86rem; line-height: 1.5; word-break: break-word;
+      box-shadow: 0 4px 20px rgba(123,31,162,0.3);
+    }
+    /* Theirs: glass, RIGHT side */
+    .bub-theirs {
+      margin-right: auto; margin-left: calc(50% + 10px);
+      max-width: calc(48% - 10px); min-width: 60px;
+      padding: 10px 13px;
+      background: rgba(255,255,255,0.09);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.9);
+      border-radius: 16px 16px 16px 3px; font-size: 0.86rem; line-height: 1.5; word-break: break-word;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+    }
+    .tl { margin-top: 5px; padding-top: 5px; font-size: 0.72rem; opacity: 0.5; border-top: 1px solid rgba(255,255,255,0.12); line-height: 1.4; }
+    .bub-mine .tl { border-top-color: rgba(179,136,255,0.2); }
+
+    /* AI Bridge Card: gold */
+    .bridge-card {
+      margin: 8px 10px 12px; padding: 13px 15px; position: relative; z-index: 1;
+      background: rgba(255,179,0,0.07);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,179,0,0.22); border-radius: 18px;
+      box-shadow: 0 4px 28px rgba(255,179,0,0.08);
+      animation: cardIn 0.3s ease;
+    }
+    @keyframes cardIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    .bridge-top { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+    .bridge-orb {
+      width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #FFD54F, #FFA000);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.72rem; box-shadow: 0 0 12px rgba(255,179,0,0.4);
+    }
+    .bridge-lbl { font-size: 0.63rem; font-weight: 700; color: #FFD54F; text-transform: uppercase; letter-spacing: 0.8px; }
+    .bridge-sub { font-size: 0.58rem; color: rgba(255,213,79,0.45); margin-top: 1px; }
+    .bridge-text { font-size: 0.84rem; color: rgba(255,255,255,0.86); line-height: 1.55; }
+
+    /* Topic break */
+    .topic-break { display: flex; align-items: center; gap: 8px; margin: 10px 0; position: relative; z-index: 1; }
+    .tb-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+    .tb-label { font-size: 0.62rem; color: rgba(255,255,255,0.2); white-space: nowrap; }
+
+    /* Input bar */
+    .input-bar {
+      flex-shrink: 0; height: 68px; padding: 10px 14px 18px;
+      background: rgba(13,13,26,0.65);
+      backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+      border-top: 1px solid rgba(255,255,255,0.07);
+      display: flex; gap: 8px; align-items: center; z-index: 10;
+    }
+    .topic-btn { background: none; border: none; color: rgba(255,255,255,0.25); font-size: 1.1rem; cursor: pointer; flex-shrink: 0; transition: color 0.2s; }
+    .chat-inp {
+      flex: 1; padding: 9px 16px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 22px; font-size: 0.9rem;
+      color: rgba(255,255,255,0.8); outline: none; font-family: inherit;
+    }
+    .chat-inp::placeholder { color: rgba(255,255,255,0.22); }
+    .send-btn {
+      width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+      background: linear-gradient(135deg, #9C27B0, #5C6BC0);
+      color: white; border: none; font-weight: 900; font-size: 0.85rem;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 4px 16px rgba(123,31,162,0.5); cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .send-btn:active { transform: scale(0.93); }
+
+    /* ═══════════════ PAGE: HOME ═══════════════ */
+    .home-topbar {
+      height: 64px; flex-shrink: 0; z-index: 10;
+      background: rgba(13,13,26,0.6);
+      backdrop-filter: blur(32px); -webkit-backdrop-filter: blur(32px);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 20px;
+    }
+    .home-title { color: white; font-weight: 800; font-size: 1.2rem; letter-spacing: -0.5px; }
+    .home-title span { background: linear-gradient(135deg, #ce93d8, #FFD54F); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .home-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; color: rgba(255,255,255,0.6); font-weight: 700;
+    }
+
+    .home-scroll { flex: 1; overflow-y: auto; padding: 18px 14px; display: flex; flex-direction: column; gap: 12px; }
+
+    .section-title { font-size: 0.65rem; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px; padding-left: 2px; }
+
+    /* Bento grid */
+    .bento-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    .bento-card {
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+      padding: 16px 14px; cursor: pointer;
+      transition: transform 0.15s, background 0.15s;
+      display: flex; flex-direction: column; gap: 10px;
+      position: relative; overflow: hidden;
+    }
+    .bento-card:active { transform: scale(0.97); background: rgba(255,255,255,0.09); }
+
+    /* Subtle glow on card */
+    .bento-card::before {
+      content: ''; position: absolute; inset: 0; border-radius: 20px; opacity: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(156,39,176,0.15), transparent 70%);
+      transition: opacity 0.3s;
+    }
+    .bento-card:hover::before { opacity: 1; }
+
+    /* Connection visual inside card */
+    .connection-row { display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .conn-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 0.8rem; flex-shrink: 0;
+    }
+    .conn-avatar.mine-av { background: linear-gradient(135deg, rgba(156,39,176,0.6), rgba(92,107,192,0.5)); color: white; border: 1.5px solid rgba(179,136,255,0.3); }
+    .conn-avatar.them-av { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border: 1.5px solid rgba(255,255,255,0.15); }
+
+    .conn-line { flex: 1; height: 1.5px; border-radius: 2px; max-width: 20px; }
+    .conn-line.online { background: linear-gradient(90deg, rgba(179,136,255,0.6), rgba(255,213,79,0.5)); }
+    .conn-line.offline { background: rgba(255,255,255,0.1); }
+
+    .card-name { font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.85); }
+    .card-preview { font-size: 0.72rem; color: rgba(255,255,255,0.35); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .card-time { font-size: 0.62rem; color: rgba(255,255,255,0.22); }
+    .card-meta { display: flex; justify-content: space-between; align-items: flex-end; }
+
+    /* Unread badge */
+    .unread {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: linear-gradient(135deg, #FFB300, #FF6F00);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.6rem; font-weight: 800; color: white;
+      box-shadow: 0 2px 8px rgba(255,179,0,0.4);
+    }
+
+    /* FAB */
+    .fab {
+      position: absolute; bottom: 24px; right: 20px; z-index: 10;
+      width: 52px; height: 52px; border-radius: 50%;
+      background: linear-gradient(135deg, #9C27B0, #5C6BC0);
+      border: none; color: white; font-size: 1.6rem; font-weight: 300;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 24px rgba(123,31,162,0.5); cursor: pointer;
+      transition: transform 0.15s;
+    }
+    .fab:active { transform: scale(0.93) rotate(45deg); }
+
+    /* ═══════════════ PAGE: LOGIN ═══════════════ */
+    .login-page {
+      position: absolute; inset: 0; display: none; flex-direction: column;
+      align-items: center; justify-content: center; padding: 24px 20px;
+    }
+    .login-page.active { display: flex; }
+
+    .login-logo {
+      font-size: 2rem; font-weight: 900; letter-spacing: -1px; margin-bottom: 8px;
+      background: linear-gradient(135deg, #ce93d8 0%, #FFD54F 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .login-slogan { font-size: 0.78rem; color: rgba(255,255,255,0.3); margin-bottom: 40px; letter-spacing: 0.5px; }
+
+    .login-card {
+      width: 100%; background: rgba(255,255,255,0.07);
+      backdrop-filter: blur(40px) saturate(180%); -webkit-backdrop-filter: blur(40px) saturate(180%);
+      border: 1px solid rgba(255,255,255,0.12); border-radius: 28px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.1);
+    }
+    .lang-strip { display: flex; justify-content: center; gap: 10px; margin-bottom: 28px; }
+    .lang-btn {
+      width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent;
+      background: rgba(255,255,255,0.06); font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+    }
+    .lang-btn.active { border-color: rgba(179,136,255,0.6); background: rgba(156,39,176,0.15); }
+
+    .field-label { font-size: 0.7rem; font-weight: 700; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+    .field-group { margin-bottom: 16px; }
+    .login-inp {
+      width: 100%; padding: 12px 16px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 14px; font-size: 0.92rem;
+      color: rgba(255,255,255,0.85); outline: none; font-family: inherit;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .login-inp:focus { border-color: rgba(179,136,255,0.5); background: rgba(255,255,255,0.1); }
+    .login-inp::placeholder { color: rgba(255,255,255,0.2); }
+
+    .login-btn {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #9C27B0, #5C6BC0);
+      border: none; border-radius: 14px;
+      color: white; font-size: 0.95rem; font-weight: 700;
+      font-family: inherit; cursor: pointer; margin-top: 8px;
+      box-shadow: 0 6px 24px rgba(123,31,162,0.4);
+      transition: opacity 0.2s;
+    }
+    .login-btn:active { opacity: 0.85; }
+    .login-switch { text-align: center; margin-top: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.3); }
+    .login-switch span { color: rgba(179,136,255,0.7); cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="top-label">BridgeIt · 最终设计原型</div>
+
+  <div class="controls">
+    <div class="page-toggle">
+      <button class="toggle-btn active" onclick="showPage('chat')">💬 聊天</button>
+      <button class="toggle-btn" onclick="showPage('home')">🏠 主页</button>
+      <button class="toggle-btn" onclick="showPage('login')">🔑 登录</button>
+    </div>
+    <button class="online-toggle on" id="online-btn" onclick="toggleOnline()">🟢 在线</button>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="bg"></div>
+    <div class="blob blob-purple"></div>
+    <div class="blob blob-yellow"></div>
+
+    <!-- ── CHAT PAGE ── -->
+    <div class="page active" id="page-chat" style="display:flex">
+      <div class="topbar">
+        <div class="back-btn">‹ 返回</div>
+        <div class="topbar-center">
+          <div class="topbar-name">Bob</div>
+          <div class="topbar-dots">
+            <div class="tdot tdot-mine" id="dot-mine"></div>
+            <!-- Offline line -->
+            <div class="tline-offline" id="tline-offline" style="display:none"></div>
+            <!-- Online flowing dots -->
+            <div class="tline-online" id="tline-online" style="display:flex">
+              <div class="tline-track"></div>
+              <div class="tflow-dot"></div>
+              <div class="tflow-dot"></div>
+              <div class="tflow-dot"></div>
+            </div>
+            <div class="tdot tdot-theirs" id="dot-theirs"></div>
+          </div>
+        </div>
+        <div class="topbar-icon">⚙️</div>
+      </div>
+
+      <div class="chat-area">
+        <div class="spine"></div>
+
+        <div class="nlabel theirs">Bob</div>
+        <div class="msg-row">
+          <div class="bub-theirs">
+            I think the division of work on this project is really unfair
+            <div class="tl">我觉得这个项目的分工真的很不公平</div>
+          </div>
+        </div>
+
+        <div class="bridge-card">
+          <div class="bridge-top">
+            <div class="bridge-orb">💡</div>
+            <div><div class="bridge-lbl">Bridge AI</div><div class="bridge-sub">仅你可见</div></div>
+          </div>
+          <div class="bridge-text">Bob 感到被忽视，情绪有些紧张。建议先共情表达理解，再询问具体是哪部分让他觉得不公平。</div>
+        </div>
+
+        <div class="nlabel mine">You</div>
+        <div class="msg-row">
+          <div class="bub-mine">
+            我想理解你的感受<br>具体是哪部分不公平？
+            <div class="tl">I want to understand — what specifically feels unfair?</div>
+          </div>
+        </div>
+
+        <div class="nlabel theirs" style="margin-top:4px">Bob</div>
+        <div class="msg-row">
+          <div class="bub-theirs">
+            You gave me too many tests and very little core code to work on
+            <div class="tl">你给了我太多测试，核心代码却很少</div>
+          </div>
+        </div>
+
+        <div class="bridge-card">
+          <div class="bridge-top">
+            <div class="bridge-orb">💡</div>
+            <div><div class="bridge-lbl">Bridge AI</div><div class="bridge-sub">氛围转变</div></div>
+          </div>
+          <div class="bridge-text">他说出了具体原因，情绪开始缓和。你的倾听很有效！建议给予认可，然后一起重新分配任务。</div>
+        </div>
+
+        <div class="nlabel mine">You</div>
+        <div class="msg-row">
+          <div class="bub-mine">好的，我们重新分配。你更想负责哪个模块？</div>
+        </div>
+
+        <div class="nlabel theirs" style="margin-top:4px">Bob</div>
+        <div class="msg-row">
+          <div class="bub-theirs">
+            Thanks for listening 🙏 I'd prefer the core API module
+            <div class="tl">谢谢你愿意听 🙏 我想要核心 API 模块</div>
+          </div>
+        </div>
+
+        <div class="topic-break">
+          <div class="tb-line"></div>
+          <div class="tb-label">── 新话题 ──</div>
+          <div class="tb-line"></div>
+        </div>
+
+        <div class="nlabel mine">You</div>
+        <div class="msg-row">
+          <div class="bub-mine">那我来做测试部分，这样更公平</div>
+        </div>
+      </div>
+
+      <div class="input-bar">
+        <button class="topic-btn">↺</button>
+        <input class="chat-inp" placeholder="输入消息…">
+        <button class="send-btn">▶</button>
+      </div>
+    </div>
+
+    <!-- ── HOME PAGE ── -->
+    <div class="page" id="page-home">
+      <div class="home-topbar">
+        <div class="home-title">Bridge<span>It</span></div>
+        <div class="home-avatar">#AL</div>
+      </div>
+      <div class="home-scroll">
+        <div class="section-title">对话</div>
+        <div class="bento-grid">
+          <div class="bento-card">
+            <div class="connection-row">
+              <div class="conn-avatar mine-av">A</div>
+              <div class="conn-line online"></div>
+              <div class="conn-avatar them-av">B</div>
+            </div>
+            <div>
+              <div class="card-name">Bob</div>
+              <div class="card-preview">Thanks for listening 🙏</div>
+            </div>
+            <div class="card-meta">
+              <div class="card-time">09:16</div>
+              <div class="unread">2</div>
+            </div>
+          </div>
+
+          <div class="bento-card">
+            <div class="connection-row">
+              <div class="conn-avatar mine-av">A</div>
+              <div class="conn-line offline"></div>
+              <div class="conn-avatar them-av">C</div>
+            </div>
+            <div>
+              <div class="card-name">Carol</div>
+              <div class="card-preview">好的，明天见！</div>
+            </div>
+            <div class="card-meta">
+              <div class="card-time">昨天</div>
+            </div>
+          </div>
+
+          <div class="bento-card">
+            <div class="connection-row">
+              <div class="conn-avatar mine-av">A</div>
+              <div class="conn-line online"></div>
+              <div class="conn-avatar them-av">D</div>
+            </div>
+            <div>
+              <div class="card-name">David</div>
+              <div class="card-preview">I completely agree with you on that</div>
+            </div>
+            <div class="card-meta">
+              <div class="card-time">周一</div>
+              <div class="unread">1</div>
+            </div>
+          </div>
+
+          <div class="bento-card">
+            <div class="connection-row">
+              <div class="conn-avatar mine-av">A</div>
+              <div class="conn-line offline"></div>
+              <div class="conn-avatar them-av">E</div>
+            </div>
+            <div>
+              <div class="card-name">Emma</div>
+              <div class="card-preview">Merci beaucoup !</div>
+            </div>
+            <div class="card-meta">
+              <div class="card-time">上周</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="fab">+</button>
+    </div>
+
+    <!-- ── LOGIN PAGE ── -->
+    <div class="login-page" id="page-login">
+      <div class="login-logo">BridgeIt</div>
+      <div class="login-slogan">理解互相，舍弃对错</div>
+      <div class="login-card">
+        <div class="lang-strip">
+          <button class="lang-btn">🇨🇳</button>
+          <button class="lang-btn active">🇺🇸</button>
+          <button class="lang-btn">🇪🇸</button>
+          <button class="lang-btn">🇷🇺</button>
+          <button class="lang-btn">🇫🇷</button>
+        </div>
+        <div class="field-group">
+          <div class="field-label">Contact ID</div>
+          <input class="login-inp" placeholder="your_id">
+        </div>
+        <div class="field-group">
+          <div class="field-label">PIN</div>
+          <input class="login-inp" type="password" placeholder="••••">
+        </div>
+        <button class="login-btn">Log In</button>
+        <div class="login-switch">Don't have an account? <span>Register</span></div>
+      </div>
+    </div>
+
+  </div>
+  <div class="top-label">点击上方按钮切换页面</div>
+
+  <script>
+    let isOnline = true;
+
+    function showPage(name) {
+      document.querySelectorAll('.page, .login-page').forEach(p => {
+        p.classList.remove('active');
+        p.style.display = 'none';
+      });
+      const target = document.getElementById('page-' + name);
+      target.classList.add('active');
+      target.style.display = 'flex';
+      document.querySelectorAll('.toggle-btn').forEach((b, i) => {
+        b.classList.toggle('active', ['chat','home','login'][i] === name);
+      });
+    }
+
+    function toggleOnline() {
+      isOnline = !isOnline;
+      const btn = document.getElementById('online-btn');
+      const offLine = document.getElementById('tline-offline');
+      const onLine = document.getElementById('tline-online');
+      const dotMine = document.getElementById('dot-mine');
+      const dotTheirs = document.getElementById('dot-theirs');
+
+      if (isOnline) {
+        btn.textContent = '🟢 在线'; btn.classList.add('on');
+        offLine.style.display = 'none';
+        onLine.style.display = 'flex';
+        dotMine.style.opacity = '1'; dotTheirs.style.opacity = '1';
+      } else {
+        btn.textContent = '⚫ 离线'; btn.classList.remove('on');
+        offLine.style.display = 'block';
+        onLine.style.display = 'none';
+        dotMine.style.opacity = '0.5'; dotTheirs.style.opacity = '0.25';
+      }
+    }
+  </script>
+</body>
+</html>

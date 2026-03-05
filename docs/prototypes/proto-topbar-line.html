@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Topbar 连接线状态</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', sans-serif;
+      display: flex; flex-direction: column; align-items: center;
+      background: #070710; min-height: 100vh; padding: 32px 0 48px; gap: 28px;
+    }
+    .section-label { color: rgba(255,255,255,0.45); font-size: 0.72rem; letter-spacing: 1px; text-transform: uppercase; text-align: center; }
+    .section { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+
+    .bar-wrap {
+      width: 375px; border-radius: 16px; overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.08);
+      position: relative;
+    }
+    .bg { position: absolute; inset: 0; background: #0d0d1a; }
+    .blob1 { position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(123,31,162,0.38) 0%, transparent 70%); top: -70px; left: -50px; }
+    .blob2 { position: absolute; width: 160px; height: 160px; border-radius: 50%; background: radial-gradient(circle, rgba(255,179,0,0.28) 0%, transparent 70%); top: -50px; right: -50px; }
+
+    .topbar {
+      position: relative; height: 64px; z-index: 2;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+      border-bottom: 1px solid rgba(255,255,255,0.07);
+      display: flex; align-items: center; padding: 0 18px;
+    }
+    .back { color: rgba(255,255,255,0.5); font-size: 0.9rem; background: none; border: none; font-family: inherit; flex-shrink: 0; padding-right: 12px; }
+    .center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+    .name { color: white; font-weight: 700; font-size: 1.05rem; letter-spacing: -0.3px; }
+    .dots { display: flex; align-items: center; gap: 5px; height: 8px; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .dot-mine { background: linear-gradient(135deg, #ce93d8, #7986cb); }
+    .dot-theirs { background: rgba(255,255,255,0.45); }
+    .icon { color: rgba(255,255,255,0.4); font-size: 1rem; flex-shrink: 0; }
+
+    /* ── LINE VARIANTS ── */
+
+    /* Offline: no line */
+    .line-none { display: none; }
+
+    /* Offline thin: very faint dashed line */
+    .line-thin {
+      width: 18px; height: 1px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 1px;
+    }
+
+    /* Online: solid gradient line */
+    .line-solid {
+      width: 20px; height: 2px;
+      background: linear-gradient(90deg, rgba(179,136,255,0.7), rgba(255,213,79,0.5));
+      border-radius: 2px;
+    }
+
+    /* Online: animated wave SVG */
+    .line-wave {
+      width: 24px; height: 8px; overflow: visible;
+    }
+
+    /* Online: animated flowing dots */
+    .line-flow {
+      width: 22px; height: 4px; position: relative; overflow: visible;
+    }
+    .flow-track {
+      position: absolute; top: 50%; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, rgba(179,136,255,0.3), rgba(255,213,79,0.2));
+      transform: translateY(-50%);
+    }
+    .flow-dot {
+      position: absolute; top: 50%; width: 3px; height: 3px; border-radius: 50%;
+      background: rgba(255,213,79,0.8); transform: translate(-50%, -50%);
+      animation: flowAnim 1.4s ease-in-out infinite;
+    }
+    .flow-dot:nth-child(2) { animation-delay: 0.35s; }
+    .flow-dot:nth-child(3) { animation-delay: 0.7s; }
+    @keyframes flowAnim {
+      0%   { left: 0%;   opacity: 0; }
+      15%  { opacity: 1; }
+      85%  { opacity: 1; }
+      100% { left: 100%; opacity: 0; }
+    }
+
+    /* Pulse line */
+    .line-pulse {
+      width: 20px; height: 2px;
+      background: linear-gradient(90deg, rgba(179,136,255,0.7), rgba(255,213,79,0.6));
+      border-radius: 2px;
+      animation: linePulse 2s ease-in-out infinite;
+    }
+    @keyframes linePulse {
+      0%,100% { opacity: 0.5; transform: scaleX(0.85); }
+      50% { opacity: 1; transform: scaleX(1); }
+    }
+
+    .status-chip {
+      position: absolute; right: 12px; top: 8px;
+      font-size: 0.58rem; color: rgba(255,255,255,0.35); z-index: 3;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 不在线：没有线 -->
+  <div class="section">
+    <div class="section-label">不在线 · 没有线</div>
+    <div class="bar-wrap">
+      <div class="bg"></div><div class="blob1"></div><div class="blob2"></div>
+      <div class="status-chip">⚫ 离线</div>
+      <div class="topbar">
+        <div class="back">‹ 返回</div>
+        <div class="center">
+          <div class="name">Bob</div>
+          <div class="dots">
+            <div class="dot dot-mine"></div>
+            <div class="line-none"></div>
+            <div class="dot dot-theirs" style="opacity:0.3"></div>
+          </div>
+        </div>
+        <div class="icon">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 不在线：线变细变暗 -->
+  <div class="section">
+    <div class="section-label">不在线 · 线变细变暗</div>
+    <div class="bar-wrap">
+      <div class="bg"></div><div class="blob1"></div><div class="blob2"></div>
+      <div class="status-chip">⚫ 离线</div>
+      <div class="topbar">
+        <div class="back">‹ 返回</div>
+        <div class="center">
+          <div class="name">Bob</div>
+          <div class="dots">
+            <div class="dot dot-mine" style="opacity:0.4"></div>
+            <div class="line-thin"></div>
+            <div class="dot dot-theirs" style="opacity:0.25"></div>
+          </div>
+        </div>
+        <div class="icon">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 在线：实线 -->
+  <div class="section">
+    <div class="section-label">在线 · 渐变实线</div>
+    <div class="bar-wrap">
+      <div class="bg"></div><div class="blob1"></div><div class="blob2"></div>
+      <div class="status-chip">🟢 在线</div>
+      <div class="topbar">
+        <div class="back">‹ 返回</div>
+        <div class="center">
+          <div class="name">Bob</div>
+          <div class="dots">
+            <div class="dot dot-mine"></div>
+            <div class="line-solid"></div>
+            <div class="dot dot-theirs"></div>
+          </div>
+        </div>
+        <div class="icon">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 在线：波浪线 -->
+  <div class="section">
+    <div class="section-label">在线 · 波浪线</div>
+    <div class="bar-wrap">
+      <div class="bg"></div><div class="blob1"></div><div class="blob2"></div>
+      <div class="status-chip">🟢 在线</div>
+      <div class="topbar">
+        <div class="back">‹ 返回</div>
+        <div class="center">
+          <div class="name">Bob</div>
+          <div class="dots">
+            <div class="dot dot-mine"></div>
+            <svg class="line-wave" viewBox="0 0 24 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0 4 Q3 1 6 4 Q9 7 12 4 Q15 1 18 4 Q21 7 24 4"
+                stroke="url(#waveGrad)" stroke-width="1.5" stroke-linecap="round" fill="none">
+                <animateTransform attributeName="transform" type="translate" from="-6 0" to="0 0" dur="0.8s" repeatCount="indefinite"/>
+              </path>
+              <defs>
+                <linearGradient id="waveGrad" x1="0" y1="0" x2="24" y2="0" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%" stop-color="#ce93d8" stop-opacity="0.8"/>
+                  <stop offset="100%" stop-color="#FFD54F" stop-opacity="0.7"/>
+                </linearGradient>
+              </defs>
+            </svg>
+            <div class="dot dot-theirs"></div>
+          </div>
+        </div>
+        <div class="icon">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 在线：流动光点 -->
+  <div class="section">
+    <div class="section-label">在线 · 流动光点</div>
+    <div class="bar-wrap">
+      <div class="bg"></div><div class="blob1"></div><div class="blob2"></div>
+      <div class="status-chip">🟢 在线</div>
+      <div class="topbar">
+        <div class="back">‹ 返回</div>
+        <div class="center">
+          <div class="name">Bob</div>
+          <div class="dots">
+            <div class="dot dot-mine"></div>
+            <div class="line-flow">
+              <div class="flow-track"></div>
+              <div class="flow-dot"></div>
+              <div class="flow-dot"></div>
+              <div class="flow-dot"></div>
+            </div>
+            <div class="dot dot-theirs"></div>
+          </div>
+        </div>
+        <div class="icon">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 在线：呼吸实线 -->
+  <div class="section">
+    <div class="section-label">在线 · 呼吸渐变线</div>
+    <div class="bar-wrap">
+      <div class="bg"></div><div class="blob1"></div><div class="blob2"></div>
+      <div class="status-chip">🟢 在线</div>
+      <div class="topbar">
+        <div class="back">‹ 返回</div>
+        <div class="center">
+          <div class="name">Bob</div>
+          <div class="dots">
+            <div class="dot dot-mine"></div>
+            <div class="line-pulse"></div>
+            <div class="dot dot-theirs"></div>
+          </div>
+        </div>
+        <div class="icon">⚙️</div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
