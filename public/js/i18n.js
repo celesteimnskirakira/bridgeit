@@ -35,6 +35,7 @@ const I18N = {
     copied: '已复制 ✓',
     share_hint: '把联系号发给想聊天的朋友',
     add_hint: '点右下角 + 输入对方联系号，立即开始对话',
+    contact_id_own_ph: '设置你的联系号',
   },
   en: {
     slogan: 'Bridge Understanding',
@@ -67,6 +68,7 @@ const I18N = {
     copied: 'Copied ✓',
     share_hint: 'Share your ID with a friend',
     add_hint: 'Tap + and enter their ID to start chatting',
+    contact_id_own_ph: 'Choose your contact ID',
   },
   es: {
     slogan: 'Construye comprensión',
@@ -99,6 +101,7 @@ const I18N = {
     copied: 'Copiado ✓',
     share_hint: 'Comparte tu ID con un amigo',
     add_hint: 'Toca + e ingresa su ID para empezar a chatear',
+    contact_id_own_ph: 'Elige tu ID de contacto',
   },
   ru: {
     slogan: 'Строй взаимопонимание',
@@ -131,6 +134,7 @@ const I18N = {
     copied: 'Скопировано ✓',
     share_hint: 'Поделитесь ID с другом',
     add_hint: 'Нажмите + и введите ID друга, чтобы начать',
+    contact_id_own_ph: 'Придумайте ваш ID',
   },
   fr: {
     slogan: 'Construire la compréhension',
@@ -163,6 +167,7 @@ const I18N = {
     copied: 'Copié ✓',
     share_hint: 'Partagez votre identifiant avec un ami',
     add_hint: 'Appuyez sur + et entrez son identifiant pour commencer',
+    contact_id_own_ph: 'Choisissez votre identifiant',
   },
 };
 
