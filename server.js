@@ -159,15 +159,37 @@ async function createRoom(room) {
   }
 }
 
-async function updateRoomTranslate(roomId, translateTo) {
+// translateTo 以 { userId: string[] } 格式按用户存储
+async function updateRoomTranslate(roomId, userId, langs) {
   if (useDB) {
-    await roomsCollection.updateOne({ id: roomId }, { $set: { translateTo } });
+    await roomsCollection.updateOne({ id: roomId }, { $set: { [`translateTo.${userId}`]: langs } });
   } else {
     const rooms = loadRoomsFile();
     const room = rooms.find(r => r.id === roomId);
-    if (room) room.translateTo = translateTo;
+    if (room) {
+      if (!room.translateTo || Array.isArray(room.translateTo)) room.translateTo = {};
+      room.translateTo[userId] = langs;
+    }
     saveRoomsFile(rooms);
   }
+}
+
+// 获取某用户在某房间的 translateTo 配置（兼容旧的数组格式）
+function getUserTranslateTo(room, userId) {
+  if (!room.translateTo) return [];
+  if (Array.isArray(room.translateTo)) return room.translateTo; // 旧格式兼容
+  return room.translateTo[userId] || [];
+}
+
+// 所有参与者 translateTo 的并集（用于给 AI 生成翻译）
+function getAllTranslateTo(room) {
+  if (!room.translateTo) return [];
+  if (Array.isArray(room.translateTo)) return room.translateTo;
+  const all = [];
+  for (const langs of Object.values(room.translateTo)) {
+    for (const l of langs) { if (!all.includes(l)) all.push(l); }
+  }
+  return all;
 }
 
 async function initDB() {
@@ -485,7 +507,7 @@ app.get('/rooms', authMiddleware, async (req, res) => {
     return {
       id: room.id,
       partner: partner ? { id: partner.id, nickname: partner.nickname } : null,
-      translateTo: room.translateTo || [],
+      translateTo: getUserTranslateTo(room, req.userId),
       lastMessage: lastMsg ? { text: lastMsg.text, timestamp: lastMsg.timestamp } : null,
     };
   }));
@@ -507,12 +529,12 @@ app.post('/rooms/add', authMiddleware, async (req, res) => {
   res.json({ roomId: room.id, partner: { id: partner.id, nickname: partner.nickname } });
 });
 
-// 更新翻译设置
+// 更新当前用户在该房间的翻译偏好
 app.patch('/rooms/:roomId/translate', authMiddleware, async (req, res) => {
   const { translateTo } = req.body;
   const room = await getRoomById(req.params.roomId);
   if (!room || !room.participants.includes(req.userId)) return res.status(403).json({ error: 'Forbidden' });
-  await updateRoomTranslate(req.params.roomId, translateTo || []);
+  await updateRoomTranslate(req.params.roomId, req.userId, translateTo || []);
   res.json({ ok: true });
 });
 
@@ -627,7 +649,7 @@ async function getAIAnalysis(latestMessage, room) {
     return `[${nick}]: ${m.text}`;
   }));
 
-  const translateTo = room.translateTo || [];
+  const translateTo = getAllTranslateTo(room);
   const systemPrompt = buildSystemPrompt(senderName, receiverName, translateTo);
 
   const resp = await openrouter.chat.completions.create({
