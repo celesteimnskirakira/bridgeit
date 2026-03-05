@@ -127,13 +127,33 @@
 </head>
 <body>
 
-<div class="topbar">
-  <button class="back-btn" onclick="window.location.href='/home.html'">‹</button>
-  <h1 id="partner-name">...</h1>
-  <button class="topbar-btn" onclick="openTranslateDrawer()" title="翻译设置">🌐</button>
+<div class="bg-wrap">
+  <div class="blob blob-purple"></div>
+  <div class="blob blob-yellow"></div>
 </div>
 
-<div class="chat-wrap" id="chat-wrap"></div>
+<div class="topbar">
+  <button class="back-btn" onclick="window.location.href='/home.html'">‹ 返回</button>
+  <div class="topbar-center">
+    <div class="topbar-name" id="partner-name">...</div>
+    <div class="topbar-dots">
+      <div class="tdot tdot-mine"></div>
+      <div class="tline-offline" id="tline-offline"></div>
+      <div class="tline-online" id="tline-online" style="display:none">
+        <div class="tline-track"></div>
+        <div class="tflow-dot"></div>
+        <div class="tflow-dot"></div>
+        <div class="tflow-dot"></div>
+      </div>
+      <div class="tdot tdot-theirs"></div>
+    </div>
+  </div>
+  <button class="topbar-btn" onclick="openSettingsDrawer()" title="聊天设置">⚙️</button>
+</div>
+
+<div class="chat-wrap" id="chat-wrap">
+  <div class="chat-spine"></div>
+</div>
 
 <div class="input-bar">
   <button class="topic-btn" onclick="sendTopicBreak()" title="新话题">↺</button>
@@ -144,9 +164,10 @@
   <button class="send-btn" id="send-btn" onclick="sendMessage()">▶</button>
 </div>
 
-<div class="drawer-overlay" id="drawer-overlay" onclick="closeTranslateDrawer()">
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeSettingsDrawer()">
   <div class="drawer" onclick="event.stopPropagation()">
-    <h3 data-i18n="msg_translate">消息翻译</h3>
+    <div class="drawer-handle"></div>
+    <h3 data-i18n="chat_settings">聊天设置</h3>
     <div id="translate-drawer-content"></div>
     <button class="btn-primary" onclick="saveTranslate()" data-i18n="save">保存</button>
   </div>
@@ -369,13 +390,13 @@ function hideThinking() { document.getElementById('thinking-indicator')?.remove(
 
 // ── Translation drawer ──────────────────────────────────────────────────────
 
-async function openTranslateDrawer() {
+async function openSettingsDrawer() {
   await loadRoomConfig();
   renderTranslateDrawer();
   document.getElementById('drawer-overlay').classList.add('open');
 }
 
-function closeTranslateDrawer() { document.getElementById('drawer-overlay').classList.remove('open'); }
+function closeSettingsDrawer() { document.getElementById('drawer-overlay').classList.remove('open'); }
 
 function renderTranslateDrawer() {
   const content = document.getElementById('translate-drawer-content');
@@ -434,7 +455,7 @@ async function saveTranslate() {
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
       body: JSON.stringify({ translateTo }),
     });
-    closeTranslateDrawer();
+    closeSettingsDrawer();
   } catch (e) { alert(T('save_failed')); }
 }
 
