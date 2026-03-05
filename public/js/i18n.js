@@ -1,0 +1,157 @@
+/* BridgeIt i18n — shared across all pages */
+const I18N = {
+  zh: {
+    slogan: '理解互相，舍弃对错',
+    network_error: '网络错误，请重试',
+    // login
+    contact_id: '联系号', pin: 'PIN 码',
+    login_btn: '登录', logging_in: '登录中...',
+    no_account: '还没有账号？', register_link: '注册',
+    fill_login: '请填写联系号和PIN码', login_failed: '登录失败',
+    // register
+    nickname: '昵称', create_account: '创建账号', registering: '注册中...',
+    have_account: '已有账号？', login_link: '登录',
+    contact_hint: '只允许字母和数字，3-20位',
+    checking: '检查中...', available: '✓ 可用', taken: '✗ 已被使用', check_failed: '检查失败',
+    fill_all: '请填写所有字段',
+    invalid_contact: '联系号只能包含字母和数字，3-20位',
+    contact_unavailable: '联系号不可用，请换一个',
+    pin_too_short: 'PIN码至少4位', register_failed: '注册失败',
+    // home
+    no_conversations: '还没有对话', add_friend_hint: '点右下角 + 添加好友',
+    start_chat: '开始聊天', interface_language: '界面语言', logout: '退出登录',
+    add_friend: '添加好友', contact_id_ph: '对方的联系号',
+    confirm_add: '确认添加', adding: '添加中...', add_failed: '添加失败，请重试',
+    enter_contact: '请输入联系号',
+    // chat
+    input_placeholder: '输入消息...',
+    new_topic_dialog: '开启新话题？AI将从这里重新开始分析上下文。',
+    msg_translate: '消息翻译', save: '保存', save_failed: '保存失败',
+    knowledge_bridge: '知识桥', new_topic_label: '新话题',
+  },
+  en: {
+    slogan: 'Bridge Understanding',
+    network_error: 'Network error, please retry',
+    contact_id: 'Contact ID', pin: 'PIN',
+    login_btn: 'Log In', logging_in: 'Logging in...',
+    no_account: "Don't have an account? ", register_link: 'Register',
+    fill_login: 'Please enter contact ID and PIN', login_failed: 'Login failed',
+    nickname: 'Nickname', create_account: 'Create Account', registering: 'Registering...',
+    have_account: 'Already have an account? ', login_link: 'Log In',
+    contact_hint: 'Letters and numbers only, 3–20 characters',
+    checking: 'Checking...', available: '✓ Available', taken: '✗ Already taken', check_failed: 'Check failed',
+    fill_all: 'Please fill in all fields',
+    invalid_contact: 'Contact ID: letters/numbers only, 3–20 chars',
+    contact_unavailable: 'Contact ID unavailable, try another',
+    pin_too_short: 'PIN must be at least 4 characters', register_failed: 'Registration failed',
+    no_conversations: 'No conversations yet', add_friend_hint: 'Tap + to add a friend',
+    start_chat: 'Start chatting', interface_language: 'Display Language', logout: 'Log Out',
+    add_friend: 'Add Friend', contact_id_ph: 'Their contact ID',
+    confirm_add: 'Add', adding: 'Adding...', add_failed: 'Failed to add, please retry',
+    enter_contact: 'Please enter a contact ID',
+    input_placeholder: 'Type a message...',
+    new_topic_dialog: 'Start new topic? AI will restart context analysis from here.',
+    msg_translate: 'Message Translation', save: 'Save', save_failed: 'Save failed',
+    knowledge_bridge: 'Knowledge Bridge', new_topic_label: 'New Topic',
+  },
+  es: {
+    slogan: 'Construye comprensión',
+    network_error: 'Error de red, inténtalo de nuevo',
+    contact_id: 'ID de contacto', pin: 'PIN',
+    login_btn: 'Iniciar sesión', logging_in: 'Iniciando sesión...',
+    no_account: '¿Sin cuenta? ', register_link: 'Registrarse',
+    fill_login: 'Ingresa ID de contacto y PIN', login_failed: 'Error de inicio de sesión',
+    nickname: 'Apodo', create_account: 'Crear cuenta', registering: 'Registrando...',
+    have_account: '¿Ya tienes cuenta? ', login_link: 'Iniciar sesión',
+    contact_hint: 'Solo letras y números, 3–20 caracteres',
+    checking: 'Comprobando...', available: '✓ Disponible', taken: '✗ Ya en uso', check_failed: 'Error de comprobación',
+    fill_all: 'Rellena todos los campos',
+    invalid_contact: 'ID de contacto: solo letras/números, 3–20',
+    contact_unavailable: 'ID no disponible, prueba otro',
+    pin_too_short: 'PIN mínimo 4 caracteres', register_failed: 'Error de registro',
+    no_conversations: 'Sin conversaciones', add_friend_hint: 'Toca + para agregar un amigo',
+    start_chat: 'Empezar a chatear', interface_language: 'Idioma', logout: 'Cerrar sesión',
+    add_friend: 'Agregar amigo', contact_id_ph: 'ID de contacto',
+    confirm_add: 'Agregar', adding: 'Agregando...', add_failed: 'Error al agregar, inténtalo de nuevo',
+    enter_contact: 'Ingresa un ID de contacto',
+    input_placeholder: 'Escribe un mensaje...',
+    new_topic_dialog: '¿Nuevo tema? La IA reiniciará el análisis de contexto.',
+    msg_translate: 'Traducción de mensajes', save: 'Guardar', save_failed: 'Error al guardar',
+    knowledge_bridge: 'Puente de conocimiento', new_topic_label: 'Nuevo tema',
+  },
+  ru: {
+    slogan: 'Строй взаимопонимание',
+    network_error: 'Ошибка сети, попробуйте снова',
+    contact_id: 'Контакт', pin: 'PIN',
+    login_btn: 'Войти', logging_in: 'Вход...',
+    no_account: 'Нет аккаунта? ', register_link: 'Регистрация',
+    fill_login: 'Введите ID контакта и PIN', login_failed: 'Ошибка входа',
+    nickname: 'Никнейм', create_account: 'Создать аккаунт', registering: 'Регистрация...',
+    have_account: 'Уже есть аккаунт? ', login_link: 'Войти',
+    contact_hint: 'Только буквы и цифры, 3–20 символов',
+    checking: 'Проверка...', available: '✓ Доступно', taken: '✗ Занято', check_failed: 'Ошибка проверки',
+    fill_all: 'Заполните все поля',
+    invalid_contact: 'ID контакта: только буквы/цифры, 3–20',
+    contact_unavailable: 'Контакт недоступен, попробуйте другой',
+    pin_too_short: 'PIN минимум 4 символа', register_failed: 'Ошибка регистрации',
+    no_conversations: 'Нет разговоров', add_friend_hint: 'Нажмите + чтобы добавить друга',
+    start_chat: 'Начать чат', interface_language: 'Язык интерфейса', logout: 'Выйти',
+    add_friend: 'Добавить друга', contact_id_ph: 'ID контакта',
+    confirm_add: 'Добавить', adding: 'Добавление...', add_failed: 'Ошибка, попробуйте снова',
+    enter_contact: 'Введите ID контакта',
+    input_placeholder: 'Введите сообщение...',
+    new_topic_dialog: 'Новая тема? ИИ перезапустит анализ с этого места.',
+    msg_translate: 'Перевод сообщений', save: 'Сохранить', save_failed: 'Ошибка сохранения',
+    knowledge_bridge: 'Мост знаний', new_topic_label: 'Новая тема',
+  },
+  fr: {
+    slogan: 'Construire la compréhension',
+    network_error: 'Erreur réseau, veuillez réessayer',
+    contact_id: 'Identifiant', pin: 'Code PIN',
+    login_btn: 'Connexion', logging_in: 'Connexion...',
+    no_account: 'Pas encore de compte ? ', register_link: "S'inscrire",
+    fill_login: 'Entrez votre identifiant et PIN', login_failed: 'Échec de la connexion',
+    nickname: 'Pseudo', create_account: 'Créer un compte', registering: 'Inscription...',
+    have_account: 'Vous avez un compte ? ', login_link: 'Se connecter',
+    contact_hint: 'Lettres et chiffres uniquement, 3–20 caractères',
+    checking: 'Vérification...', available: '✓ Disponible', taken: '✗ Déjà pris', check_failed: 'Échec de la vérification',
+    fill_all: 'Veuillez remplir tous les champs',
+    invalid_contact: 'Identifiant : lettres/chiffres, 3–20 caractères',
+    contact_unavailable: 'Identifiant non disponible, essayez-en un autre',
+    pin_too_short: 'PIN minimum 4 caractères', register_failed: "Échec de l'inscription",
+    no_conversations: 'Aucune conversation', add_friend_hint: 'Appuyez + pour ajouter un ami',
+    start_chat: 'Commencer à discuter', interface_language: 'Langue', logout: 'Se déconnecter',
+    add_friend: 'Ajouter un ami', contact_id_ph: 'Identifiant de contact',
+    confirm_add: 'Ajouter', adding: 'Ajout...', add_failed: "Échec de l'ajout, veuillez réessayer",
+    enter_contact: 'Veuillez entrer un identifiant',
+    input_placeholder: 'Tapez un message...',
+    new_topic_dialog: "Nouveau sujet ? L'IA reprendra l'analyse ici.",
+    msg_translate: 'Traduction de messages', save: 'Enregistrer', save_failed: "Échec de l'enregistrement",
+    knowledge_bridge: 'Pont de connaissance', new_topic_label: 'Nouveau sujet',
+  },
+};
+
+function getLang() {
+  return localStorage.getItem('bridgeit_lang') ||
+    (JSON.parse(localStorage.getItem('bridgeit_user') || '{}').language) || 'zh';
+}
+
+function T(key) {
+  const lang = getLang();
+  return (I18N[lang] || I18N.zh)[key] || I18N.zh[key] || key;
+}
+
+function applyI18n() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    const val = T(key);
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+      if (el.placeholder !== undefined) el.placeholder = val;
+    } else {
+      el.textContent = val;
+    }
+  });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+    el.placeholder = T(el.dataset.i18nPh);
+  });
+}

@@ -7,15 +7,9 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/mobile.css">
   <style>
-    .login-wrap {
-      min-height: 100vh; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; padding: 24px;
-      background: linear-gradient(135deg, #7B1FA2 0%, #1976D2 100%);
-    }
+    .login-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(135deg, #7B1FA2 0%, #1976D2 100%); }
     .login-card { background: white; border-radius: 24px; padding: 36px 28px; width: 100%; max-width: 380px; }
-    .logo { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 4px;
-      background: linear-gradient(135deg, #7B1FA2, #1976D2);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .logo { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 4px; background: linear-gradient(135deg, #7B1FA2, #1976D2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .slogan { text-align: center; color: #999; font-size: 0.85rem; margin-bottom: 28px; }
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 0.85rem; color: #666; margin-bottom: 6px; }
@@ -32,27 +26,29 @@
 <div class="login-wrap">
   <div class="login-card">
     <div class="logo">BridgeIt</div>
-    <div class="slogan">理解互相，舍弃对错</div>
+    <div class="slogan" data-i18n="slogan">理解互相，舍弃对错</div>
     <div class="form-group">
-      <label>昵称</label>
-      <input type="text" id="nickname" class="input-field" placeholder="你的名字" autocomplete="nickname">
+      <label data-i18n="nickname">昵称</label>
+      <input type="text" id="nickname" class="input-field" placeholder="..." autocomplete="nickname">
     </div>
     <div class="form-group">
-      <label>联系号</label>
-      <input type="text" id="contactId" class="input-field" placeholder="字母或数字，3-20位" autocomplete="username" oninput="checkContactId()">
-      <div class="contact-hint hint" id="contact-hint">只允许字母和数字，3-20位</div>
+      <label data-i18n="contact_id">联系号</label>
+      <input type="text" id="contactId" class="input-field" placeholder="your_id" autocomplete="username" oninput="checkContactId()">
+      <div class="contact-hint hint" id="contact-hint" data-i18n="contact_hint">只允许字母和数字，3-20位</div>
     </div>
     <div class="form-group">
-      <label>PIN 码</label>
-      <input type="password" id="pin" class="input-field" placeholder="至少4位" autocomplete="new-password">
+      <label data-i18n="pin">PIN 码</label>
+      <input type="password" id="pin" class="input-field" placeholder="••••" autocomplete="new-password">
     </div>
     <div class="error" id="error-msg"></div>
-    <button class="btn-primary" id="reg-btn" onclick="doRegister()">创建账号</button>
-    <div class="switch-link">已有账号？<a href="/login.html">登录</a></div>
+    <button class="btn-primary" id="reg-btn" onclick="doRegister()" data-i18n="create_account">创建账号</button>
+    <div class="switch-link"><span data-i18n="have_account">已有账号？</span><a href="/login.html" data-i18n="login_link">登录</a></div>
   </div>
 </div>
+<script src="/js/i18n.js"></script>
 <script>
   if (localStorage.getItem('bridgeit_token')) window.location.href = '/home.html';
+  applyI18n();
 
   let checkTimer = null;
   let contactIdAvailable = false;
@@ -62,36 +58,24 @@
     const contactId = document.getElementById('contactId').value.trim();
     const hint = document.getElementById('contact-hint');
     if (!contactId) {
-      hint.textContent = '只允许字母和数字，3-20位';
-      hint.className = 'contact-hint hint';
-      contactIdAvailable = false;
-      return;
+      hint.textContent = T('contact_hint'); hint.className = 'contact-hint hint';
+      contactIdAvailable = false; return;
     }
     if (!/^[a-zA-Z0-9]{3,20}$/.test(contactId)) {
-      hint.textContent = '只允许字母和数字，3-20位';
-      hint.className = 'contact-hint taken';
-      contactIdAvailable = false;
-      return;
+      hint.textContent = T('contact_hint'); hint.className = 'contact-hint taken';
+      contactIdAvailable = false; return;
     }
-    hint.textContent = '检查中...';
-    hint.className = 'contact-hint hint';
+    hint.textContent = T('checking'); hint.className = 'contact-hint hint';
     checkTimer = setTimeout(async () => {
       try {
         const res = await fetch(`/auth/check/${encodeURIComponent(contactId)}`);
         const data = await res.json();
         if (data.available) {
-          hint.textContent = '✓ 可用';
-          hint.className = 'contact-hint available';
-          contactIdAvailable = true;
+          hint.textContent = T('available'); hint.className = 'contact-hint available'; contactIdAvailable = true;
         } else {
-          hint.textContent = '✗ 已被使用';
-          hint.className = 'contact-hint taken';
-          contactIdAvailable = false;
+          hint.textContent = T('taken'); hint.className = 'contact-hint taken'; contactIdAvailable = false;
         }
-      } catch (e) {
-        hint.textContent = '检查失败';
-        hint.className = 'contact-hint hint';
-      }
+      } catch (e) { hint.textContent = T('check_failed'); hint.className = 'contact-hint hint'; }
     }, 400);
   }
 
@@ -99,36 +83,29 @@
     const nickname = document.getElementById('nickname').value.trim();
     const contactId = document.getElementById('contactId').value.trim();
     const pin = document.getElementById('pin').value;
-    if (!nickname || !contactId || !pin) { showError('请填写所有字段'); return; }
-    if (!/^[a-zA-Z0-9]{3,20}$/.test(contactId)) { showError('联系号只能包含字母和数字，3-20位'); return; }
-    if (!contactIdAvailable) { showError('联系号不可用，请换一个'); return; }
-    if (pin.length < 4) { showError('PIN码至少4位'); return; }
+    if (!nickname || !contactId || !pin) { showError(T('fill_all')); return; }
+    if (!/^[a-zA-Z0-9]{3,20}$/.test(contactId)) { showError(T('invalid_contact')); return; }
+    if (!contactIdAvailable) { showError(T('contact_unavailable')); return; }
+    if (pin.length < 4) { showError(T('pin_too_short')); return; }
 
     const btn = document.getElementById('reg-btn');
-    btn.disabled = true; btn.textContent = '注册中...';
-
+    btn.disabled = true; btn.textContent = T('registering');
     try {
       const res = await fetch('/auth/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contactId, nickname, pin }),
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || '注册失败'); return; }
+      if (!res.ok) { showError(data.error || T('register_failed')); return; }
       localStorage.setItem('bridgeit_token', data.token);
       localStorage.setItem('bridgeit_user', JSON.stringify(data.user));
+      if (data.user.language) localStorage.setItem('bridgeit_lang', data.user.language);
       window.location.href = '/home.html';
-    } catch (e) {
-      showError('网络错误，请重试');
-    } finally {
-      btn.disabled = false; btn.textContent = '创建账号';
-    }
+    } catch (e) { showError(T('network_error')); }
+    finally { btn.disabled = false; btn.textContent = T('create_account'); }
   }
 
-  function showError(msg) {
-    const el = document.getElementById('error-msg');
-    el.textContent = msg; el.style.display = 'block';
-  }
+  function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = msg; el.style.display = 'block'; }
 </script>
 </body>
 </html>

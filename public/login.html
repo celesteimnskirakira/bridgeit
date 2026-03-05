@@ -7,20 +7,9 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/mobile.css">
   <style>
-    .login-wrap {
-      min-height: 100vh;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      padding: 24px;
-      background: linear-gradient(135deg, #7B1FA2 0%, #1976D2 100%);
-    }
-    .login-card {
-      background: white; border-radius: 24px;
-      padding: 36px 28px; width: 100%; max-width: 380px;
-    }
-    .logo { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 4px;
-      background: linear-gradient(135deg, #7B1FA2, #1976D2);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .login-wrap { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: linear-gradient(135deg, #7B1FA2 0%, #1976D2 100%); }
+    .login-card { background: white; border-radius: 24px; padding: 36px 28px; width: 100%; max-width: 380px; }
+    .logo { font-size: 2rem; font-weight: 700; text-align: center; margin-bottom: 4px; background: linear-gradient(135deg, #7B1FA2, #1976D2); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .slogan { text-align: center; color: #999; font-size: 0.85rem; margin-bottom: 28px; }
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-size: 0.85rem; color: #666; margin-bottom: 6px; }
@@ -33,57 +22,50 @@
 <div class="login-wrap">
   <div class="login-card">
     <div class="logo">BridgeIt</div>
-    <div class="slogan">理解互相，舍弃对错</div>
+    <div class="slogan" data-i18n="slogan">理解互相，舍弃对错</div>
     <div class="form-group">
-      <label>联系号</label>
-      <input type="text" id="contactId" class="input-field" placeholder="你的联系号" autocomplete="username">
+      <label data-i18n="contact_id">联系号</label>
+      <input type="text" id="contactId" class="input-field" placeholder="your_id" autocomplete="username">
     </div>
     <div class="form-group">
-      <label>PIN 码</label>
+      <label data-i18n="pin">PIN 码</label>
       <input type="password" id="pin" class="input-field" placeholder="••••••" autocomplete="current-password">
     </div>
     <div class="error" id="error-msg"></div>
-    <button class="btn-primary" id="login-btn" onclick="doLogin()">登录</button>
-    <div class="switch-link">还没有账号？<a href="/register.html">注册</a></div>
+    <button class="btn-primary" id="login-btn" onclick="doLogin()" data-i18n="login_btn">登录</button>
+    <div class="switch-link"><span data-i18n="no_account">还没有账号？</span><a href="/register.html" data-i18n="register_link">注册</a></div>
   </div>
 </div>
+<script src="/js/i18n.js"></script>
 <script>
   if (localStorage.getItem('bridgeit_token')) window.location.href = '/home.html';
-
+  applyI18n();
   document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
 
   async function doLogin() {
     const contactId = document.getElementById('contactId').value.trim();
     const pin = document.getElementById('pin').value;
-    const errorEl = document.getElementById('error-msg');
-    errorEl.style.display = 'none';
-    if (!contactId || !pin) { showError('请填写联系号和PIN码'); return; }
+    document.getElementById('error-msg').style.display = 'none';
+    if (!contactId || !pin) { showError(T('fill_login')); return; }
 
     const btn = document.getElementById('login-btn');
-    btn.disabled = true; btn.textContent = '登录中...';
-
+    btn.disabled = true; btn.textContent = T('logging_in');
     try {
       const res = await fetch('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contactId, pin }),
       });
       const data = await res.json();
-      if (!res.ok) { showError(data.error || '登录失败'); return; }
+      if (!res.ok) { showError(data.error || T('login_failed')); return; }
       localStorage.setItem('bridgeit_token', data.token);
       localStorage.setItem('bridgeit_user', JSON.stringify(data.user));
+      if (data.user.language) localStorage.setItem('bridgeit_lang', data.user.language);
       window.location.href = '/home.html';
-    } catch (e) {
-      showError('网络错误，请重试');
-    } finally {
-      btn.disabled = false; btn.textContent = '登录';
-    }
+    } catch (e) { showError(T('network_error')); }
+    finally { btn.disabled = false; btn.textContent = T('login_btn'); }
   }
 
-  function showError(msg) {
-    const el = document.getElementById('error-msg');
-    el.textContent = msg; el.style.display = 'block';
-  }
+  function showError(msg) { const el = document.getElementById('error-msg'); el.textContent = msg; el.style.display = 'block'; }
 </script>
 </body>
 </html>
