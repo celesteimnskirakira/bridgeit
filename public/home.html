@@ -31,6 +31,44 @@
     .add-friend-drawer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 24px 20px 40px; }
     .add-friend-drawer h3 { font-size: 1rem; margin-bottom: 16px; color: #333; }
     .add-friend-error { color: #F44336; font-size: 0.82rem; margin-top: 8px; display: none; }
+
+    .onboarding-card {
+      margin: 24px 16px; background: white;
+      border-radius: 20px; padding: 24px 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+    .onboarding-title {
+      font-size: 1.05rem; font-weight: 700;
+      color: var(--text); margin-bottom: 20px; text-align: center;
+    }
+    .onboarding-step {
+      display: flex; align-items: flex-start; gap: 14px;
+      margin-bottom: 18px;
+    }
+    .onboarding-step:last-child { margin-bottom: 0; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--purple-bg); color: var(--purple);
+      font-weight: 700; font-size: 0.82rem; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-body { flex: 1; }
+    .step-label { font-size: 0.82rem; color: #999; margin-bottom: 4px; }
+    .step-content { font-size: 0.9rem; color: var(--text); line-height: 1.4; }
+    .contact-id-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--purple-bg); color: var(--purple);
+      border-radius: 20px; padding: 4px 12px;
+      font-weight: 700; font-size: 0.9rem; cursor: pointer;
+      border: none; margin-top: 4px; transition: opacity 0.15s;
+    }
+    .contact-id-chip:active { opacity: 0.7; }
+    .step-action {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--purple); font-size: 0.88rem;
+      font-weight: 600; cursor: pointer; margin-top: 6px;
+      background: none; border: none; padding: 0;
+    }
   </style>
 </head>
 <body>
@@ -98,7 +136,33 @@
   function renderRooms(rooms) {
     const list = document.getElementById('room-list');
     if (rooms.length === 0) {
-      list.innerHTML = `<div class="empty-state"><h3>${escHtml(T('no_conversations'))}</h3><p>${escHtml(T('add_friend_hint'))}</p></div>`;
+      const cid = user.contactId ? '#' + user.contactId : '';
+      list.innerHTML = `
+    <div class="onboarding-card">
+      <div class="onboarding-title">${escHtml(T('welcome_title'))}</div>
+      <div class="onboarding-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-label">${escHtml(T('your_contact_id'))}</div>
+          <button class="contact-id-chip" onclick="copyContactId(this, '${escHtml(user.contactId || '')}')">
+            ${escHtml(cid)} <span>📋</span>
+          </button>
+        </div>
+      </div>
+      <div class="onboarding-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-content">${escHtml(T('share_hint'))}</div>
+        </div>
+      </div>
+      <div class="onboarding-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-content">${escHtml(T('add_hint'))}</div>
+          <button class="step-action" onclick="openAddFriend()">+ ${escHtml(T('add_friend'))}</button>
+        </div>
+      </div>
+    </div>`;
       return;
     }
     list.innerHTML = rooms.map(room => {
@@ -201,6 +265,14 @@
   }
 
   function escHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+  function copyContactId(btn, id) {
+    navigator.clipboard.writeText(id).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = escHtml(T('copied'));
+      setTimeout(() => { btn.innerHTML = orig; }, 1500);
+    }).catch(() => {});
+  }
 
   loadRooms();
   setInterval(loadRooms, 30000);
