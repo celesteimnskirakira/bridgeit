@@ -20,11 +20,30 @@
     .contact-hint.available { color: #4CAF50; }
     .contact-hint.taken { color: #F44336; }
     .contact-hint.hint { color: #999; }
+    .lang-strip {
+      display: flex; justify-content: center; gap: 8px; margin-bottom: 20px;
+    }
+    .lang-strip-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid transparent; background: none;
+      font-size: 1.25rem; cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .lang-strip-btn.active {
+      border-color: var(--purple); background: var(--purple-bg);
+    }
   </style>
 </head>
 <body>
 <div class="login-wrap">
   <div class="login-card">
+    <div class="lang-strip" id="lang-strip">
+      <button class="lang-strip-btn" data-lang="zh" onclick="switchLang('zh')">🇨🇳</button>
+      <button class="lang-strip-btn" data-lang="en" onclick="switchLang('en')">🇺🇸</button>
+      <button class="lang-strip-btn" data-lang="es" onclick="switchLang('es')">🇪🇸</button>
+      <button class="lang-strip-btn" data-lang="ru" onclick="switchLang('ru')">🇷🇺</button>
+      <button class="lang-strip-btn" data-lang="fr" onclick="switchLang('fr')">🇫🇷</button>
+    </div>
     <div class="logo">BridgeIt</div>
     <div class="slogan" data-i18n="slogan">理解互相，舍弃对错</div>
     <div class="form-group">
@@ -49,6 +68,21 @@
 <script>
   if (localStorage.getItem('bridgeit_token')) window.location.href = '/home.html';
   applyI18n();
+
+  function updateLangStrip() {
+    const cur = getLang();
+    document.querySelectorAll('.lang-strip-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.lang === cur);
+    });
+  }
+
+  function switchLang(code) {
+    localStorage.setItem('bridgeit_lang', code);
+    applyI18n();
+    updateLangStrip();
+  }
+
+  updateLangStrip();
 
   let checkTimer = null;
   let contactIdAvailable = false;
