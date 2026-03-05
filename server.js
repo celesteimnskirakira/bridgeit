@@ -33,6 +33,8 @@ const io = new Server(server);
 let useDB = false;
 let messagesCollection = null;
 let conversationsCollection = null;
+let usersCollection = null;
+let roomsCollection = null;
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'bridgeit-data.json');
@@ -47,48 +49,125 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-// ─── User Storage ─────────────────────────────────────────────
-function loadUsers() {
+// ─── File-based User/Room Storage (fallback) ──────────────────
+function loadUsersFile() {
   try {
     if (fs.existsSync(USERS_FILE)) return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8'));
-  } catch (e) { console.error('loadUsers error:', e.message); }
+  } catch (e) { console.error('loadUsersFile error:', e.message); }
   return [];
 }
 
-function saveUsers(users) {
+function saveUsersFile(users) {
   try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-  } catch (e) { console.error('saveUsers error:', e.message); }
+  } catch (e) { console.error('saveUsersFile error:', e.message); }
 }
 
-function findUserById(id) {
-  return loadUsers().find(u => u.id === id) || null;
-}
-
-function findUserByContactId(contactId) {
-  return loadUsers().find(u => u.contactId === contactId.toLowerCase()) || null;
-}
-
-// ─── Room Storage ─────────────────────────────────────────────
-function loadRooms() {
+function loadRoomsFile() {
   try {
     if (fs.existsSync(ROOMS_FILE)) return JSON.parse(fs.readFileSync(ROOMS_FILE, 'utf-8'));
-  } catch (e) { console.error('loadRooms error:', e.message); }
+  } catch (e) { console.error('loadRoomsFile error:', e.message); }
   return [];
 }
 
-function saveRooms(rooms) {
+function saveRoomsFile(rooms) {
   try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
     fs.writeFileSync(ROOMS_FILE, JSON.stringify(rooms, null, 2));
-  } catch (e) { console.error('saveRooms error:', e.message); }
+  } catch (e) { console.error('saveRoomsFile error:', e.message); }
 }
 
-function getRoomsForUser(userId) {
-  return loadRooms().filter(r => r.participants.includes(userId));
+// ─── User Operations (async, DB or file) ──────────────────────
+async function findUserById(id) {
+  if (useDB) {
+    const doc = await usersCollection.findOne({ id });
+    if (!doc) return null;
+    const { _id, ...user } = doc;
+    return user;
+  }
+  return loadUsersFile().find(u => u.id === id) || null;
 }
 
-function getRoomById(roomId) {
-  return loadRooms().find(r => r.id === roomId) || null;
+async function findUserByContactId(contactId) {
+  if (useDB) {
+    const doc = await usersCollection.findOne({ contactId: contactId.toLowerCase() });
+    if (!doc) return null;
+    const { _id, ...user } = doc;
+    return user;
+  }
+  return loadUsersFile().find(u => u.contactId === contactId.toLowerCase()) || null;
+}
+
+async function createUser(user) {
+  if (useDB) {
+    await usersCollection.insertOne({ ...user });
+  } else {
+    const users = loadUsersFile();
+    users.push(user);
+    saveUsersFile(users);
+  }
+}
+
+async function updateUser(id, updates) {
+  if (useDB) {
+    await usersCollection.updateOne({ id }, { $set: updates });
+  } else {
+    const users = loadUsersFile();
+    const user = users.find(u => u.id === id);
+    if (user) Object.assign(user, updates);
+    saveUsersFile(users);
+  }
+}
+
+// ─── Room Operations (async, DB or file) ──────────────────────
+async function getRoomsForUser(userId) {
+  if (useDB) {
+    const docs = await roomsCollection.find({ participants: userId }).toArray();
+    return docs.map(({ _id, ...rest }) => rest);
+  }
+  return loadRoomsFile().filter(r => r.participants.includes(userId));
+}
+
+async function getRoomById(roomId) {
+  if (useDB) {
+    const doc = await roomsCollection.findOne({ id: roomId });
+    if (!doc) return null;
+    const { _id, ...room } = doc;
+    return room;
+  }
+  return loadRoomsFile().find(r => r.id === roomId) || null;
+}
+
+async function findRoomBetweenUsers(userId1, userId2) {
+  if (useDB) {
+    const doc = await roomsCollection.findOne({ participants: { $all: [userId1, userId2] } });
+    if (!doc) return null;
+    const { _id, ...room } = doc;
+    return room;
+  }
+  return loadRoomsFile().find(r => r.participants.includes(userId1) && r.participants.includes(userId2)) || null;
+}
+
+async function createRoom(room) {
+  if (useDB) {
+    await roomsCollection.insertOne({ ...room });
+  } else {
+    const rooms = loadRoomsFile();
+    rooms.push(room);
+    saveRoomsFile(rooms);
+  }
+}
+
+async function updateRoomTranslate(roomId, translateTo) {
+  if (useDB) {
+    await roomsCollection.updateOne({ id: roomId }, { $set: { translateTo } });
+  } else {
+    const rooms = loadRoomsFile();
+    const room = rooms.find(r => r.id === roomId);
+    if (room) room.translateTo = translateTo;
+    saveRoomsFile(rooms);
+  }
 }
 
 async function initDB() {
@@ -100,9 +179,15 @@ async function initDB() {
     const db = client.db('bridgeit');
     messagesCollection = db.collection('messages');
     conversationsCollection = db.collection('conversations');
+    usersCollection = db.collection('users');
+    roomsCollection = db.collection('rooms');
     await messagesCollection.createIndex({ id: 1 }, { unique: true });
     await messagesCollection.createIndex({ conversationId: 1 });
     await conversationsCollection.createIndex({ id: 1 }, { unique: true });
+    await usersCollection.createIndex({ id: 1 }, { unique: true });
+    await usersCollection.createIndex({ contactId: 1 }, { unique: true });
+    await roomsCollection.createIndex({ id: 1 }, { unique: true });
+    await roomsCollection.createIndex({ participants: 1 });
     useDB = true;
     console.log('Connected to MongoDB Atlas');
   } catch (err) {
@@ -110,7 +195,7 @@ async function initDB() {
   }
 }
 
-// ─── File Storage ────────────────────────────────────────────
+// ─── File Storage (messages/conversations) ────────────────────
 function loadFileData() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -324,8 +409,8 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // ─── Auth Routes ─────────────────────────────────────────────
-app.get('/auth/check/:contactId', (req, res) => {
-  const exists = !!findUserByContactId(req.params.contactId);
+app.get('/auth/check/:contactId', async (req, res) => {
+  const exists = !!(await findUserByContactId(req.params.contactId));
   res.json({ available: !exists });
 });
 
@@ -337,14 +422,12 @@ app.post('/auth/create', async (req, res) => {
   if (!/^[a-zA-Z0-9]{3,20}$/.test(contactId)) {
     return res.status(400).json({ error: '联系号只能包含字母和数字，长度3-20位' });
   }
-  if (findUserByContactId(contactId)) {
+  if (await findUserByContactId(contactId)) {
     return res.status(409).json({ error: '联系号已被使用' });
   }
   const pinHash = await bcrypt.hash(pin, SALT_ROUNDS);
   const user = { id: generateId(), contactId: contactId.toLowerCase(), nickname, pinHash, language: 'zh', createdAt: Date.now() };
-  const users = loadUsers();
-  users.push(user);
-  saveUsers(users);
+  await createUser(user);
   const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '30d' });
   res.json({ token, user: { id: user.id, contactId: user.contactId, nickname: user.nickname, language: user.language } });
 });
@@ -352,7 +435,7 @@ app.post('/auth/create', async (req, res) => {
 app.post('/auth/login', async (req, res) => {
   const { contactId, pin } = req.body;
   if (!contactId || !pin) return res.status(400).json({ error: 'contactId and pin required' });
-  const user = findUserByContactId(contactId);
+  const user = await findUserByContactId(contactId);
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
   const valid = await bcrypt.compare(pin, user.pinHash);
   if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
@@ -360,19 +443,19 @@ app.post('/auth/login', async (req, res) => {
   res.json({ token, user: { id: user.id, contactId: user.contactId, nickname: user.nickname, language: user.language } });
 });
 
-app.patch('/auth/profile', (req, res) => {
+app.patch('/auth/profile', async (req, res) => {
   const auth = req.headers.authorization;
   if (!auth) return res.status(401).json({ error: 'No token' });
   try {
     const { userId } = jwt.verify(auth.replace('Bearer ', ''), JWT_SECRET);
     const { nickname, language } = req.body;
-    const users = loadUsers();
-    const user = users.find(u => u.id === userId);
+    const user = await findUserById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    if (nickname) user.nickname = nickname;
-    if (language) user.language = language;
-    saveUsers(users);
-    res.json({ id: user.id, contactId: user.contactId, nickname: user.nickname, language: user.language });
+    const updates = {};
+    if (nickname) updates.nickname = nickname;
+    if (language) updates.language = language;
+    await updateUser(userId, updates);
+    res.json({ id: userId, contactId: user.contactId, nickname: updates.nickname || user.nickname, language: updates.language || user.language });
   } catch (e) {
     res.status(401).json({ error: 'Invalid token' });
   }
@@ -393,10 +476,10 @@ function authMiddleware(req, res, next) {
 
 // 获取用户的房间列表（联系人列表）
 app.get('/rooms', authMiddleware, async (req, res) => {
-  const rooms = getRoomsForUser(req.userId);
+  const rooms = await getRoomsForUser(req.userId);
   const result = await Promise.all(rooms.map(async (room) => {
     const partnerId = room.participants.find(id => id !== req.userId);
-    const partner = findUserById(partnerId);
+    const partner = await findUserById(partnerId);
     const msgs = await loadMessages(room.id);
     const lastMsg = msgs.filter(m => m.type !== 'topic-break').slice(-1)[0];
     return {
@@ -411,41 +494,35 @@ app.get('/rooms', authMiddleware, async (req, res) => {
 });
 
 // 添加好友（直接通过联系号建立房间）
-app.post('/rooms/add', authMiddleware, (req, res) => {
+app.post('/rooms/add', authMiddleware, async (req, res) => {
   const { contactId } = req.body;
   if (!contactId) return res.status(400).json({ error: 'contactId required' });
-  const partner = findUserByContactId(contactId);
+  const partner = await findUserByContactId(contactId);
   if (!partner) return res.status(404).json({ error: '用户不存在' });
   if (partner.id === req.userId) return res.status(400).json({ error: '不能添加自己' });
-  const existing = loadRooms().find(r =>
-    r.participants.includes(req.userId) && r.participants.includes(partner.id)
-  );
+  const existing = await findRoomBetweenUsers(req.userId, partner.id);
   if (existing) return res.json({ roomId: existing.id, partner: { id: partner.id, nickname: partner.nickname }, alreadyExists: true });
   const room = { id: generateId(), participants: [req.userId, partner.id], translateTo: [], createdAt: Date.now() };
-  const rooms = loadRooms();
-  rooms.push(room);
-  saveRooms(rooms);
+  await createRoom(room);
   res.json({ roomId: room.id, partner: { id: partner.id, nickname: partner.nickname } });
 });
 
 // 更新翻译设置
-app.patch('/rooms/:roomId/translate', authMiddleware, (req, res) => {
+app.patch('/rooms/:roomId/translate', authMiddleware, async (req, res) => {
   const { translateTo } = req.body;
-  const rooms = loadRooms();
-  const room = rooms.find(r => r.id === req.params.roomId);
+  const room = await getRoomById(req.params.roomId);
   if (!room || !room.participants.includes(req.userId)) return res.status(403).json({ error: 'Forbidden' });
-  room.translateTo = translateTo || [];
-  saveRooms(rooms);
+  await updateRoomTranslate(req.params.roomId, translateTo || []);
   res.json({ ok: true });
 });
 
 // ─── Socket.io Auth Middleware ────────────────────────────────
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error('No auth token'));
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const user = findUserById(payload.userId);
+    const user = await findUserById(payload.userId);
     if (!user) return next(new Error('User not found'));
     socket.userId = user.id;
     socket.userNickname = user.nickname;
@@ -460,7 +537,7 @@ io.on('connection', async (socket) => {
   console.log('Connected:', socket.id, 'user:', socket.userNickname);
 
   socket.on('join-room', async (roomId, cb) => {
-    const room = getRoomById(roomId);
+    const room = await getRoomById(roomId);
     if (!room || !room.participants.includes(socket.userId)) {
       return cb?.({ error: 'Forbidden' });
     }
@@ -470,7 +547,7 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('send-message', async ({ roomId, text }) => {
-    const room = getRoomById(roomId);
+    const room = await getRoomById(roomId);
     if (!room || !room.participants.includes(socket.userId)) return;
 
     const message = {
@@ -498,7 +575,7 @@ io.on('connection', async (socket) => {
   });
 
   socket.on('new-topic-break', async ({ roomId }, cb) => {
-    const room = getRoomById(roomId);
+    const room = await getRoomById(roomId);
     if (!room || !room.participants.includes(socket.userId)) return;
     const breakMsg = {
       id: ++messageIdCounter,
@@ -539,15 +616,16 @@ async function getAIAnalysis(latestMessage, room) {
 
   const senderId = latestMessage.senderId || latestMessage.user;
   const receiverId = room.participants.find(id => id !== senderId);
-  const sender = findUserById(senderId);
-  const receiver = findUserById(receiverId);
+  const sender = await findUserById(senderId);
+  const receiver = await findUserById(receiverId);
   const senderName = sender?.nickname || senderId;
   const receiverName = receiver?.nickname || receiverId;
 
-  const convo = windowMessages.map(m => {
-    const nick = findUserById(m.senderId || m.user)?.nickname || m.user || m.senderId;
+  const convo = await Promise.all(windowMessages.map(async m => {
+    const u = await findUserById(m.senderId || m.user);
+    const nick = u?.nickname || m.user || m.senderId;
     return `[${nick}]: ${m.text}`;
-  }).join('\n');
+  }));
 
   const translateTo = room.translateTo || [];
   const systemPrompt = buildSystemPrompt(senderName, receiverName, translateTo);
@@ -556,7 +634,7 @@ async function getAIAnalysis(latestMessage, room) {
     model: AI_MODEL,
     messages: [
       { role: 'system', content: systemPrompt },
-      { role: 'user', content: `Recent conversation:\n${convo}\n\nAnalyze the latest message from ${senderName}: "${latestMessage.text}"` },
+      { role: 'user', content: `Recent conversation:\n${convo.join('\n')}\n\nAnalyze the latest message from ${senderName}: "${latestMessage.text}"` },
     ],
     temperature: 0.7,
   });
