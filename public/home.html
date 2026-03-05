@@ -203,6 +203,7 @@
   function escHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
 
   loadRooms();
+  setInterval(loadRooms, 30000);
 </script>
 </body>
 </html>

@@ -28,6 +28,8 @@ const I18N = {
     new_topic_dialog: '开启新话题？AI将从这里重新开始分析上下文。',
     msg_translate: '消息翻译', save: '保存', save_failed: '保存失败',
     knowledge_bridge: '知识桥', new_topic_label: '新话题',
+    translate_to: '已选翻译语言（可拖动排序）', add_translation: '添加翻译语言',
+    no_translate_selected: '暂未选择翻译语言',
   },
   en: {
     slogan: 'Bridge Understanding',
@@ -53,6 +55,8 @@ const I18N = {
     new_topic_dialog: 'Start new topic? AI will restart context analysis from here.',
     msg_translate: 'Message Translation', save: 'Save', save_failed: 'Save failed',
     knowledge_bridge: 'Knowledge Bridge', new_topic_label: 'New Topic',
+    translate_to: 'Translate to (drag to reorder)', add_translation: 'Add language',
+    no_translate_selected: 'No languages selected',
   },
   es: {
     slogan: 'Construye comprensión',
@@ -78,6 +82,8 @@ const I18N = {
     new_topic_dialog: '¿Nuevo tema? La IA reiniciará el análisis de contexto.',
     msg_translate: 'Traducción de mensajes', save: 'Guardar', save_failed: 'Error al guardar',
     knowledge_bridge: 'Puente de conocimiento', new_topic_label: 'Nuevo tema',
+    translate_to: 'Traducir a (arrastra para ordenar)', add_translation: 'Añadir idioma',
+    no_translate_selected: 'Sin idiomas seleccionados',
   },
   ru: {
     slogan: 'Строй взаимопонимание',
@@ -103,6 +109,8 @@ const I18N = {
     new_topic_dialog: 'Новая тема? ИИ перезапустит анализ с этого места.',
     msg_translate: 'Перевод сообщений', save: 'Сохранить', save_failed: 'Ошибка сохранения',
     knowledge_bridge: 'Мост знаний', new_topic_label: 'Новая тема',
+    translate_to: 'Перевести на (перетащите для сортировки)', add_translation: 'Добавить язык',
+    no_translate_selected: 'Языки не выбраны',
   },
   fr: {
     slogan: 'Construire la compréhension',
@@ -128,6 +136,8 @@ const I18N = {
     new_topic_dialog: "Nouveau sujet ? L'IA reprendra l'analyse ici.",
     msg_translate: 'Traduction de messages', save: 'Enregistrer', save_failed: "Échec de l'enregistrement",
     knowledge_bridge: 'Pont de connaissance', new_topic_label: 'Nouveau sujet',
+    translate_to: 'Traduire en (glisser pour trier)', add_translation: 'Ajouter une langue',
+    no_translate_selected: 'Aucune langue sélectionnée',
   },
 };
 

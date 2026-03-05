@@ -14,7 +14,7 @@
     }
 
     /* 消息气泡 */
-    .msg-row { display: flex; margin-bottom: 4px; }
+    .msg-row { display: flex; margin-bottom: 4px; align-items: flex-end; }
     .msg-row.mine { justify-content: flex-end; }
     .msg-row.theirs { justify-content: flex-start; }
 
@@ -39,24 +39,24 @@
     }
     .theirs .translation-text { border-top-color: rgba(0,0,0,0.08); color: #888; }
 
-    .msg-time { font-size: 0.68rem; color: #CCC; margin: 0 6px 8px; align-self: flex-end; }
+    .msg-time { font-size: 0.68rem; color: #CCC; margin: 0 4px 4px; align-self: flex-end; }
 
-    /* AI 💡 card */
-    .ai-card { margin: 0 0 12px 0; display: flex; flex-direction: column; align-items: flex-start; }
+    /* AI 💡 inline */
     .ai-toggle {
-      width: 34px; height: 34px; background: var(--ai-green-bg); border-radius: 50%;
+      width: 24px; height: 24px; background: var(--ai-green-bg); border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: 1rem; border: none;
+      cursor: pointer; font-size: 0.72rem; border: none;
       transition: background 0.15s; flex-shrink: 0;
+      align-self: flex-end; margin: 0 2px 4px;
     }
     .ai-toggle:active { background: #B2DFDB; }
-    .ai-card.expanded .ai-toggle { background: var(--ai-green); }
+    .ai-toggle.active { background: var(--ai-green); }
     .ai-card-body {
-      display: none; margin-top: 8px; width: 100%;
+      display: none; margin: 2px 0 12px 0;
       background: var(--ai-green-bg); border-radius: 12px;
       padding: 12px 14px; animation: fadeUp 0.2s ease;
     }
-    .ai-card.expanded .ai-card-body { display: block; }
+    .ai-card-body.expanded { display: block; }
     .ai-full-text { font-size: 0.85rem; color: #004D40; line-height: 1.6; margin-bottom: 8px; }
     .ai-advice { font-size: 0.82rem; color: #00695C; line-height: 1.5; }
     .ai-advice-item { padding: 4px 0; }
@@ -117,14 +117,28 @@
 
     .drawer-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; }
     .drawer-overlay.open { display: block; }
-    .drawer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px 20px 40px; z-index: 201; }
+    .drawer { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-radius: 20px 20px 0 0; padding: 20px 20px 40px; z-index: 201; max-height: 80vh; overflow-y: auto; }
     .drawer h3 { font-size: 1rem; margin-bottom: 16px; }
-    .lang-check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-    .lang-check { display: flex; align-items: center; gap: 8px; padding: 12px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; transition: all 0.15s; }
-    .lang-check.checked { border-color: var(--purple); background: var(--purple-bg); }
-    .lang-check input { display: none; }
-    .lang-check-label { font-size: 0.88rem; }
-    .lang-check.checked .lang-check-label { color: var(--purple); font-weight: 600; }
+
+    /* Translation drawer */
+    .tl-section-label { font-size: 0.72rem; color: #999; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; margin-top: 4px; }
+    .tl-order-list { margin-bottom: 16px; }
+    .tl-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 14px; background: var(--ai-green-bg);
+      border-radius: 10px; margin-bottom: 6px;
+      touch-action: none; user-select: none;
+    }
+    .drag-handle { color: #B2DFDB; font-size: 1.1rem; cursor: grab; flex-shrink: 0; line-height: 1; }
+    .drag-handle:active { cursor: grabbing; }
+    .tl-lang-label { flex: 1; font-size: 0.88rem; color: #00695C; }
+    .tl-remove { background: none; border: none; color: #B2DFDB; font-size: 1.2rem; cursor: pointer; padding: 2px 4px; line-height: 1; flex-shrink: 0; }
+    .tl-remove:active { color: #F44336; }
+    .tl-placeholder { background: #E8F5E9; border-radius: 10px; border: 2px dashed #80CBC4; margin-bottom: 6px; }
+    .tl-add-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .tl-add-btn { padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; background: white; font-size: 0.82rem; cursor: pointer; text-align: left; }
+    .tl-add-btn:active { background: var(--bg); }
+    .tl-empty { color: #CCC; font-size: 0.82rem; text-align: center; padding: 12px 0 4px; }
   </style>
 </head>
 <body>
@@ -149,7 +163,7 @@
 <div class="drawer-overlay" id="drawer-overlay" onclick="closeTranslateDrawer()">
   <div class="drawer" onclick="event.stopPropagation()">
     <h3 data-i18n="msg_translate">消息翻译</h3>
-    <div class="lang-check-grid" id="lang-grid"></div>
+    <div id="translate-drawer-content"></div>
     <button class="btn-primary" onclick="saveTranslate()" data-i18n="save">保存</button>
   </div>
 </div>
@@ -184,11 +198,11 @@ let translateTo = [];
 
 const socket = io({ auth: { token } });
 
-socket.on('connect', () => {
+socket.on('connect', async () => {
+  await loadRoomConfig(); // must complete before rendering so translateTo order is correct
   socket.emit('join-room', roomId, ({ messages, error }) => {
     if (error) { window.location.href = '/home.html'; return; }
     messages.forEach(msg => renderItem(msg, false));
-    // 渲染历史 AI 卡片（只为当前用户是接收方的消息）
     messages.filter(m => m.analysis && !m.type && m.analysis.receiverId === myId)
       .forEach(m => renderAICard(m.analysis));
     scrollToBottom();
@@ -207,7 +221,20 @@ socket.on('ai-analysis', analysis => {
   attachTranslations(analysis);
   if (analysis.receiverId === myId) renderAICard(analysis);
 });
+socket.on('ai-error', ({ roomId: rid }) => {
+  if (rid === roomId) hideThinking();
+});
 socket.on('topic-break', msg => { if (msg.roomId === roomId) renderItem(msg, true); });
+
+async function loadRoomConfig() {
+  try {
+    const res = await fetch('/rooms', { headers: { Authorization: 'Bearer ' + token } });
+    if (!res.ok) return;
+    const rooms = await res.json();
+    const room = rooms.find(r => r.id === roomId);
+    translateTo = room?.translateTo || [];
+  } catch (e) {}
+}
 
 function handleKey(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
@@ -250,9 +277,12 @@ function renderItem(msg, animate) {
   let html = escHtml(msg.text);
   const translations = msg.translations || msg.analysis?.translations;
   if (translations) {
-    const lines = Object.entries(translations)
-      .filter(([, t]) => t && t !== msg.text)
-      .map(([, t]) => `<div class="translation-line">${escHtml(t)}</div>`);
+    const orderedLangs = translateTo.length > 0
+      ? translateTo.filter(l => translations[l])
+      : Object.keys(translations);
+    const lines = orderedLangs
+      .filter(lang => translations[lang] && translations[lang] !== msg.text)
+      .map(lang => `<div class="translation-line">${escHtml(translations[lang])}</div>`);
     if (lines.length) html += `<div class="translation-text">${lines.join('')}</div>`;
   }
 
@@ -283,9 +313,13 @@ function attachTranslations(analysis) {
   const bubble = document.getElementById('msg-' + analysis.messageId);
   if (!bubble || bubble.querySelector('.translation-text')) return;
   const original = bubble.dataset.original || '';
-  const lines = Object.entries(analysis.translations)
-    .filter(([, t]) => t && t !== original)
-    .map(([, t]) => `<div class="translation-line">${escHtml(t)}</div>`);
+  const translations = analysis.translations;
+  const orderedLangs = translateTo.length > 0
+    ? translateTo.filter(l => translations[l])
+    : Object.keys(translations);
+  const lines = orderedLangs
+    .filter(lang => translations[lang] && translations[lang] !== original)
+    .map(lang => `<div class="translation-line">${escHtml(translations[lang])}</div>`);
   if (lines.length) {
     const div = document.createElement('div');
     div.className = 'translation-text';
@@ -295,9 +329,16 @@ function attachTranslations(analysis) {
 }
 
 function renderAICard(analysis) {
-  const wrap = document.getElementById('chat-wrap');
-  const card = document.createElement('div');
-  card.className = 'ai-card';
+  const bubble = document.getElementById('msg-' + analysis.messageId);
+  if (!bubble) return;
+  const row = bubble.parentElement;
+  if (!row || row.querySelector('.ai-toggle')) return;
+
+  const btn = document.createElement('button');
+  btn.className = 'ai-toggle';
+  btn.textContent = '💡';
+  btn.onclick = () => toggleAI(analysis.messageId);
+  row.insertBefore(btn, row.lastChild); // before time
 
   let bodyHtml = `<div class="ai-full-text">${escHtml(analysis.insight || '')}</div>`;
   if (Array.isArray(analysis.advice) && analysis.advice.length) {
@@ -315,14 +356,22 @@ function renderAICard(analysis) {
     </div>`;
   }
 
-  card.innerHTML = `<button class="ai-toggle" onclick="toggleAI(this.parentElement)">💡</button>
-    <div class="ai-card-body">${bodyHtml}</div>`;
-
-  wrap.appendChild(card);
-  scrollToBottom();
+  const body = document.createElement('div');
+  body.className = 'ai-card-body';
+  body.id = 'ai-body-' + analysis.messageId;
+  body.innerHTML = bodyHtml;
+  row.insertAdjacentElement('afterend', body);
 }
 
-function toggleAI(card) { card.classList.toggle('expanded'); }
+function toggleAI(messageId) {
+  const body = document.getElementById('ai-body-' + messageId);
+  const row = document.getElementById('msg-' + messageId)?.parentElement;
+  const btn = row?.querySelector('.ai-toggle');
+  if (body) {
+    body.classList.toggle('expanded');
+    btn?.classList.toggle('active');
+  }
+}
 
 function showThinking() {
   if (document.getElementById('thinking-indicator')) return;
@@ -334,29 +383,67 @@ function showThinking() {
 }
 function hideThinking() { document.getElementById('thinking-indicator')?.remove(); }
 
-async function openTranslateDrawer() {
-  try {
-    const res = await fetch('/rooms', { headers: { Authorization: 'Bearer ' + token } });
-    const rooms = await res.json();
-    const room = rooms.find(r => r.id === roomId);
-    translateTo = room?.translateTo || [];
-  } catch (e) {}
+// ── Translation drawer ──────────────────────────────────────────────────────
 
-  const grid = document.getElementById('lang-grid');
-  grid.innerHTML = LANGS.map(l => `
-    <label class="lang-check ${translateTo.includes(l.code) ? 'checked' : ''}" onclick="toggleLang('${l.code}', this)">
-      <input type="checkbox" ${translateTo.includes(l.code) ? 'checked' : ''}>
-      <span class="lang-check-label">${l.label}</span>
-    </label>`).join('');
+async function openTranslateDrawer() {
+  await loadRoomConfig();
+  renderTranslateDrawer();
   document.getElementById('drawer-overlay').classList.add('open');
 }
 
-function toggleLang(code, el) {
-  if (translateTo.includes(code)) { translateTo = translateTo.filter(l => l !== code); el.classList.remove('checked'); }
-  else { translateTo.push(code); el.classList.add('checked'); }
+function closeTranslateDrawer() { document.getElementById('drawer-overlay').classList.remove('open'); }
+
+function renderTranslateDrawer() {
+  const content = document.getElementById('translate-drawer-content');
+  const selected = LANGS.filter(l => translateTo.includes(l.code))
+    .sort((a, b) => translateTo.indexOf(a.code) - translateTo.indexOf(b.code));
+  const available = LANGS.filter(l => !translateTo.includes(l.code));
+
+  let html = '';
+
+  // Selected section (draggable)
+  html += `<div class="tl-section-label" data-i18n="translate_to">${T('translate_to')}</div>`;
+  if (selected.length === 0) {
+    html += `<div class="tl-empty" data-i18n="no_translate_selected">${T('no_translate_selected')}</div>`;
+  }
+  html += `<div class="tl-order-list" id="tl-order-list">`;
+  html += selected.map(l => `
+    <div class="tl-item" data-lang="${l.code}">
+      <span class="drag-handle">≡</span>
+      <span class="tl-lang-label">${l.label}</span>
+      <button class="tl-remove" onclick="removeLang('${l.code}')">×</button>
+    </div>`).join('');
+  html += `</div>`;
+
+  // Available section
+  if (available.length > 0) {
+    html += `<div class="tl-section-label" style="margin-top:14px" data-i18n="add_translation">${T('add_translation')}</div>`;
+    html += `<div class="tl-add-grid">`;
+    html += available.map(l => `
+      <button class="tl-add-btn" onclick="addLang('${l.code}')">${l.label} +</button>`).join('');
+    html += `</div>`;
+  }
+
+  content.innerHTML = html;
+  initDragHandles();
+}
+
+function addLang(code) {
+  if (!translateTo.includes(code)) {
+    translateTo = [...translateTo, code];
+    renderTranslateDrawer();
+  }
+}
+
+function removeLang(code) {
+  translateTo = translateTo.filter(l => l !== code);
+  renderTranslateDrawer();
 }
 
 async function saveTranslate() {
+  // Read current order from DOM
+  const items = document.querySelectorAll('#tl-order-list .tl-item');
+  translateTo = [...items].map(el => el.dataset.lang);
   try {
     await fetch(`/rooms/${roomId}/translate`, {
       method: 'PATCH',
@@ -367,7 +454,74 @@ async function saveTranslate() {
   } catch (e) { alert(T('save_failed')); }
 }
 
-function closeTranslateDrawer() { document.getElementById('drawer-overlay').classList.remove('open'); }
+// ── Drag to reorder ─────────────────────────────────────────────────────────
+
+let dragState = null;
+
+function initDragHandles() {
+  const list = document.getElementById('tl-order-list');
+  if (!list) return;
+  list.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.addEventListener('pointerdown', onDragStart);
+  });
+}
+
+function onDragStart(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const item = e.currentTarget.closest('.tl-item');
+  const list = item.parentElement;
+  const rect = item.getBoundingClientRect();
+
+  const ghost = item.cloneNode(true);
+  ghost.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;opacity:0.9;z-index:999;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.15);border-radius:10px;background:var(--ai-green-bg);display:flex;align-items:center;gap:10px;padding:11px 14px;`;
+  document.body.appendChild(ghost);
+
+  const ph = document.createElement('div');
+  ph.className = 'tl-placeholder';
+  ph.style.height = rect.height + 'px';
+  list.insertBefore(ph, item);
+  item.style.opacity = '0';
+
+  dragState = { item, list, ghost, ph, startY: e.clientY, rectTop: rect.top, itemH: rect.height };
+
+  document.addEventListener('pointermove', onDragMove, { passive: false });
+  document.addEventListener('pointerup', onDragEnd, { once: true });
+  document.addEventListener('pointercancel', onDragEnd, { once: true });
+  document.documentElement.style.userSelect = 'none';
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  e.preventDefault();
+  const dy = e.clientY - dragState.startY;
+  dragState.ghost.style.top = (dragState.rectTop + dy) + 'px';
+
+  const ghostMidY = dragState.rectTop + dy + dragState.itemH / 2;
+  const siblings = [...dragState.list.querySelectorAll('.tl-item')];
+  let insertBefore = null;
+  for (const s of siblings) {
+    if (s === dragState.item) continue;
+    const r = s.getBoundingClientRect();
+    if (ghostMidY < r.top + r.height / 2) { insertBefore = s; break; }
+  }
+  dragState.list.insertBefore(dragState.ph, insertBefore || null);
+}
+
+function onDragEnd(e) {
+  if (!dragState) return;
+  const { item, list, ghost, ph } = dragState;
+  list.insertBefore(item, ph);
+  item.style.opacity = '1';
+  ph.remove();
+  ghost.remove();
+  document.documentElement.style.userSelect = '';
+  // Update translateTo from new DOM order
+  translateTo = [...list.querySelectorAll('.tl-item')].map(el => el.dataset.lang);
+  dragState = null;
+}
+
+// ── Utilities ────────────────────────────────────────────────────────────────
 
 function scrollToBottom() { const w = document.getElementById('chat-wrap'); w.scrollTop = w.scrollHeight; }
 function formatTime(ts) { const d = new Date(ts); return d.getHours().toString().padStart(2,'0') + ':' + d.getMinutes().toString().padStart(2,'0'); }
