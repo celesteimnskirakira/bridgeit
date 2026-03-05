@@ -123,6 +123,9 @@
     .reset-color-btn { background: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 12px; font-size: 0.82rem; color: rgba(255,255,255,0.4); cursor: pointer; font-family: inherit; }
     .btn-primary { width: 100%; padding: 14px; background: linear-gradient(135deg, #9C27B0, #5C6BC0); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s; box-shadow: 0 4px 20px rgba(123,31,162,0.4); font-family: inherit; }
     .btn-primary:active { opacity: 0.85; }
+    .bridge-status { font-size: 0.65rem; color: rgba(255,213,79,0.5); margin-top: 3px; margin-right: calc(50% + 10px); text-align: right; opacity: 0; transition: opacity 0.4s; position: relative; z-index: 1; padding: 0 2px; }
+    .bridge-status.visible { opacity: 1; }
+    .bridge-status.dim { opacity: 0.3; }
   </style>
 </head>
 <body>
@@ -169,7 +172,13 @@
     <div class="drawer-handle"></div>
     <h3 data-i18n="chat_settings">聊天设置</h3>
     <div id="translate-drawer-content"></div>
-    <button class="btn-primary" onclick="saveTranslate()" data-i18n="save">保存</button>
+    <div class="tl-section-label" style="margin-top:20px" data-i18n="partner_bubble_color">对方气泡颜色</div>
+    <div class="color-row">
+      <input type="color" id="partner-color-input" value="#ffffff"
+        oninput="document.documentElement.style.setProperty('--partner-bubble', this.value)">
+      <button class="reset-color-btn" onclick="resetColor()" data-i18n="reset_default">恢复默认</button>
+    </div>
+    <button class="btn-primary" onclick="saveSettings()" data-i18n="save">保存</button>
   </div>
 </div>
 
@@ -200,10 +209,22 @@ document.getElementById('partner-name').textContent = partnerName;
 applyI18n();
 
 let translateTo = [];
+let lastSenderId = null;
+let _savedPartnerColor = '#ffffff';
+
+function loadPartnerColor() {
+  const c = localStorage.getItem('bridgeit_partner_color') || '#ffffff';
+  _savedPartnerColor = c;
+  document.documentElement.style.setProperty('--partner-bubble', c);
+}
+loadPartnerColor();
 
 const socket = io({ auth: { token } });
 
 socket.on('connect', async () => {
+  // Show online status
+  document.getElementById('tline-offline').style.display = 'none';
+  document.getElementById('tline-online').style.display = 'flex';
   await loadRoomConfig(); // must complete before rendering so translateTo order is correct
   socket.emit('join-room', roomId, ({ messages, error }) => {
     if (error) { window.location.href = '/home.html'; return; }
@@ -225,6 +246,7 @@ socket.on('ai-analysis', analysis => {
   hideThinking();
   attachTranslations(analysis);
   if (analysis.receiverId === myId) renderAICard(analysis);
+  if (analysis.senderId === myId) renderBridgeStatus(analysis);
 });
 socket.on('ai-error', ({ roomId: rid }) => {
   if (rid === roomId) hideThinking();
@@ -266,9 +288,23 @@ function sendTopicBreak() {
 }
 
 function renderItem(msg, animate) {
-  if (msg.type === 'topic-break') { renderTopicBreak(animate); return; }
+  if (msg.type === 'topic-break') {
+    lastSenderId = null; // reset on topic break
+    renderTopicBreak(animate);
+    return;
+  }
   const isMe = (msg.senderId === myId);
   const wrap = document.getElementById('chat-wrap');
+
+  // Name label when sender changes
+  if (msg.senderId !== lastSenderId) {
+    const nlabel = document.createElement('div');
+    nlabel.className = 'nlabel ' + (isMe ? 'mine' : 'theirs');
+    nlabel.textContent = isMe ? (user.nickname || 'You') : partnerName;
+    if (!animate) nlabel.style.animation = 'none';
+    wrap.appendChild(nlabel);
+    lastSenderId = msg.senderId;
+  }
 
   const row = document.createElement('div');
   row.className = 'msg-row ' + (isMe ? 'mine' : 'theirs');
@@ -333,50 +369,68 @@ function attachTranslations(analysis) {
   }
 }
 
-function renderAICard(analysis) {
+function renderBridgeStatus(analysis) {
   const bubble = document.getElementById('msg-' + analysis.messageId);
   if (!bubble) return;
   const row = bubble.parentElement;
-  if (!row || row.querySelector('.ai-toggle')) return;
+  if (!row) return;
+  // 防止重复插入
+  if (row.nextElementSibling?.classList?.contains('bridge-status')) return;
+  const statusEl = document.createElement('div');
+  statusEl.className = 'bridge-status';
+  const insight = (analysis.insight || '').slice(0, 30);
+  statusEl.textContent = '💡 Bridge 已建立 · ' + insight + (analysis.insight?.length > 30 ? '…' : '');
+  row.insertAdjacentElement('afterend', statusEl);
+  // fade in
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => statusEl.classList.add('visible'));
+  });
+  // dim after 3s
+  setTimeout(() => {
+    statusEl.classList.remove('visible');
+    statusEl.classList.add('dim');
+  }, 3000);
+}
 
-  const btn = document.createElement('button');
-  btn.className = 'ai-toggle';
-  btn.textContent = '💡';
-  btn.onclick = () => toggleAI(analysis.messageId);
-  row.insertBefore(btn, row.lastChild); // before time
+function renderAICard(analysis) {
+  if (document.getElementById('ai-body-' + analysis.messageId)) return;
+  const bubble = document.getElementById('msg-' + analysis.messageId);
+  if (!bubble) return;
+  const row = bubble.parentElement;
+  if (!row) return;
 
-  let bodyHtml = `<div class="ai-full-text">${escHtml(analysis.insight || '')}</div>`;
+  let bodyHtml = `
+    <div class="bridge-top">
+      <div class="bridge-orb">💡</div>
+      <div>
+        <div class="bridge-lbl">Bridge AI</div>
+        <div class="bridge-sub">仅你可见</div>
+      </div>
+    </div>
+    <div class="bridge-text">${escHtml(analysis.insight || '')}</div>`;
+
   if (Array.isArray(analysis.advice) && analysis.advice.length) {
-    bodyHtml += `<div class="ai-advice">` +
-      analysis.advice.map(a => `<div class="ai-advice-item">${escHtml(a)}</div>`).join('') +
+    bodyHtml += `<div class="bridge-advice">` +
+      analysis.advice.map(a => `<div class="bridge-advice-item">${escHtml(a)}</div>`).join('') +
       `</div>`;
   }
   if (analysis.knowledgeBridge?.topic) {
     const kb = analysis.knowledgeBridge;
     const facts = Array.isArray(kb.facts) ? kb.facts : [];
-    bodyHtml += `<div class="kb-card">
+    bodyHtml += `<div class="bridge-kb">
       <div class="kb-label">${escHtml(T('knowledge_bridge'))}</div>
       <div class="kb-topic">${escHtml(kb.topic)}</div>
       ${facts.map(f => `<div class="kb-fact">${escHtml(f)}</div>`).join('')}
     </div>`;
   }
 
-  const body = document.createElement('div');
-  body.className = 'ai-card-body';
-  body.id = 'ai-body-' + analysis.messageId;
-  body.innerHTML = bodyHtml;
-  row.insertAdjacentElement('afterend', body);
+  const card = document.createElement('div');
+  card.className = 'bridge-card';
+  card.id = 'ai-body-' + analysis.messageId;
+  card.innerHTML = bodyHtml;
+  row.insertAdjacentElement('afterend', card);
 }
 
-function toggleAI(messageId) {
-  const body = document.getElementById('ai-body-' + messageId);
-  const row = document.getElementById('msg-' + messageId)?.parentElement;
-  const btn = row?.querySelector('.ai-toggle');
-  if (body) {
-    body.classList.toggle('expanded');
-    btn?.classList.toggle('active');
-  }
-}
 
 function showThinking() {
   if (document.getElementById('thinking-indicator')) return;
@@ -391,12 +445,42 @@ function hideThinking() { document.getElementById('thinking-indicator')?.remove(
 // ── Translation drawer ──────────────────────────────────────────────────────
 
 async function openSettingsDrawer() {
+  _savedPartnerColor = localStorage.getItem('bridgeit_partner_color') || '#ffffff';
   await loadRoomConfig();
   renderTranslateDrawer();
   document.getElementById('drawer-overlay').classList.add('open');
+  const input = document.getElementById('partner-color-input');
+  if (input) input.value = _savedPartnerColor;
+  applyI18n();
 }
 
-function closeSettingsDrawer() { document.getElementById('drawer-overlay').classList.remove('open'); }
+function closeSettingsDrawer() {
+  document.documentElement.style.setProperty('--partner-bubble', _savedPartnerColor);
+  document.getElementById('drawer-overlay').classList.remove('open');
+}
+
+function resetColor() {
+  document.getElementById('partner-color-input').value = '#ffffff';
+  document.documentElement.style.setProperty('--partner-bubble', '#ffffff');
+}
+
+async function saveSettings() {
+  const items = document.querySelectorAll('#tl-order-list .tl-item');
+  translateTo = [...items].map(el => el.dataset.lang);
+  const colorInput = document.getElementById('partner-color-input');
+  const color = colorInput ? colorInput.value : '#ffffff';
+  localStorage.setItem('bridgeit_partner_color', color);
+  document.documentElement.style.setProperty('--partner-bubble', color);
+  _savedPartnerColor = color;
+  try {
+    await fetch(`/rooms/${roomId}/translate`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ translateTo }),
+    });
+    closeSettingsDrawer();
+  } catch (e) { alert(T('save_failed')); }
+}
 
 function renderTranslateDrawer() {
   const content = document.getElementById('translate-drawer-content');
@@ -445,19 +529,6 @@ function removeLang(code) {
   renderTranslateDrawer();
 }
 
-async function saveTranslate() {
-  // Read current order from DOM
-  const items = document.querySelectorAll('#tl-order-list .tl-item');
-  translateTo = [...items].map(el => el.dataset.lang);
-  try {
-    await fetch(`/rooms/${roomId}/translate`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify({ translateTo }),
-    });
-    closeSettingsDrawer();
-  } catch (e) { alert(T('save_failed')); }
-}
 
 // ── Drag to reorder ─────────────────────────────────────────────────────────
 
