@@ -126,6 +126,12 @@
     .bridge-status { font-size: 0.65rem; color: rgba(255,213,79,0.5); margin-top: 3px; margin-right: calc(50% + 10px); text-align: right; opacity: 0; transition: opacity 0.4s; position: relative; z-index: 1; padding: 0 2px; }
     .bridge-status.visible { opacity: 1; }
     .bridge-status.dim { opacity: 0.3; }
+    .bridge-moment { margin: 4px 10px 12px; padding: 13px 15px; position: relative; z-index: 1; background: rgba(92,107,192,0.1); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(179,136,255,0.25); border-radius: 18px; box-shadow: 0 4px 20px rgba(92,107,192,0.1); animation: fadeUp 0.4s ease; }
+    .bm-top { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+    .bm-orb { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #9C27B0, #5C6BC0); display: flex; align-items: center; justify-content: center; font-size: 0.8rem; box-shadow: 0 0 12px rgba(92,107,192,0.4); }
+    .bm-lbl { font-size: 0.63rem; font-weight: 700; color: rgba(179,136,255,0.9); text-transform: uppercase; letter-spacing: 0.8px; }
+    .bm-text { font-size: 0.84rem; color: rgba(255,255,255,0.82); line-height: 1.55; }
+    .bm-time { font-size: 0.6rem; color: rgba(255,255,255,0.2); text-align: right; margin-top: 6px; }
   </style>
 </head>
 <body>
@@ -151,6 +157,7 @@
       <div class="tdot tdot-theirs"></div>
     </div>
   </div>
+  <button class="topbar-btn" onclick="openJournal()" title="Bridge 日志">📖</button>
   <button class="topbar-btn" onclick="openSettingsDrawer()" title="聊天设置">⚙️</button>
 </div>
 
@@ -252,6 +259,10 @@ socket.on('ai-error', ({ roomId: rid }) => {
   if (rid === roomId) hideThinking();
 });
 socket.on('topic-break', msg => { if (msg.roomId === roomId) renderItem(msg, true); });
+socket.on('topic-summary', data => {
+  if (data.roomId !== roomId) return;
+  renderBridgeMoment(data.summary, data.timestamp);
+});
 
 async function loadRoomConfig() {
   try {
@@ -390,6 +401,27 @@ function renderBridgeStatus(analysis) {
     statusEl.classList.remove('visible');
     statusEl.classList.add('dim');
   }, 3000);
+}
+
+function renderBridgeMoment(summary, timestamp) {
+  const wrap = document.getElementById('chat-wrap');
+  const card = document.createElement('div');
+  card.className = 'bridge-moment';
+  const t = new Date(timestamp);
+  const timeStr = `${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:${String(t.getMinutes()).padStart(2,'0')}`;
+  card.innerHTML = `
+    <div class="bm-top">
+      <div class="bm-orb">🌉</div>
+      <div class="bm-lbl">Bridge Moment</div>
+    </div>
+    <div class="bm-text">${escHtml(summary)}</div>
+    <div class="bm-time">${timeStr}</div>`;
+  wrap.appendChild(card);
+  scrollToBottom();
+}
+
+function openJournal() {
+  window.location.href = '/journal.html?room=' + encodeURIComponent(roomId);
 }
 
 function renderAICard(analysis) {
