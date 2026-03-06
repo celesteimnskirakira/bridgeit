@@ -50,9 +50,14 @@
       display:flex; align-items:center; justify-content:center; gap:0; pointer-events:none;
       animation: overlayIn 0.15s ease forwards; }
     .hug-overlay.leaving { animation: overlayOut 0.2s ease forwards; }
-    .hug-char { display:flex; flex-direction:column; align-items:center; gap:4px; }
-    .hug-head { width:22px; height:22px; border-radius:50%; }
-    .hug-body { width:30px; height:32px; border-radius:15px 15px 10px 10px; }
+    .hug-char { display:flex; flex-direction:column; align-items:center; gap:2px; }
+    .hug-head { width:32px; height:32px; border-radius:50%; background:rgba(242,242,250,0.97); position:relative; }
+    .hug-head::before,.hug-head::after { content:''; position:absolute; width:6px; height:4px;
+      background:rgba(15,15,30,0.8); border-radius:50%; top:54%; transform:translateY(-50%); }
+    .hug-head::before { left:22%; }
+    .hug-head::after  { right:22%; }
+    .hug-body { width:44px; height:46px; border-radius:50% 50% 40% 40% / 44% 44% 56% 56%;
+      background:rgba(242,242,250,0.97); }
     .hug-char.left  { animation: slideInLeft  0.4s ease forwards; }
     .hug-char.right { animation: slideInRight 0.4s ease forwards; }
     .hug-char.hugging { animation: hugPulse 0.3s ease forwards; }
@@ -356,13 +361,13 @@ function showHugAnimation() {
 
   const left = document.createElement('div');
   left.className = 'hug-char left';
-  left.innerHTML = `<div class="hug-head" style="background:rgba(210,170,255,0.95)"></div>
-    <div class="hug-body" style="background:rgba(156,39,176,0.85)"></div>`;
+  left.innerHTML = `<div class="hug-head" style="box-shadow:0 2px 18px rgba(179,136,255,0.7)"></div>
+    <div class="hug-body" style="box-shadow:0 4px 18px rgba(156,39,176,0.5)"></div>`;
 
   const right = document.createElement('div');
   right.className = 'hug-char right';
-  right.innerHTML = `<div class="hug-head" style="background:${partnerBg};filter:brightness(1.6)"></div>
-    <div class="hug-body" style="background:${partnerBg}"></div>`;
+  right.innerHTML = `<div class="hug-head" style="box-shadow:0 2px 18px ${partnerBg}"></div>
+    <div class="hug-body" style="box-shadow:0 4px 18px ${partnerBg}"></div>`;
 
   scene.appendChild(left);
   scene.appendChild(right);
