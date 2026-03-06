@@ -7,7 +7,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/mobile.css">
   <style>
-    :root { --partner-bubble: rgba(255,255,255,0.12); }
+    :root { --partner-bubble: rgba(255,255,255,0.12); --partner-text: #e8e8e8; }
     body { background: var(--dark-bg); overflow: hidden; }
 
     /* ── Background blobs ── */
@@ -55,7 +55,7 @@
     .mine .bubble { margin-left: auto; margin-right: 0; background: linear-gradient(140deg, rgba(156,39,176,0.78), rgba(92,107,192,0.72)); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(179,136,255,0.32); color: white; border-radius: 16px 16px 3px 16px; text-align: right; box-shadow: 0 4px 20px rgba(123,31,162,0.3); }
     .mine .msg-time { order: -1; margin-right: 6px; }
     /* Theirs: glass, RIGHT side */
-    .theirs .bubble { margin-left: calc(50% + 10px); background: var(--partner-bubble); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.9); border-radius: 16px 16px 16px 3px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
+    .theirs .bubble { margin-left: calc(50% + 10px); background: var(--partner-bubble); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.14); color: var(--partner-text); border-radius: 16px 16px 16px 3px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
 
     .msg-time { font-size: 0.65rem; color: rgba(255,255,255,0.3); margin-bottom: 3px; flex-shrink: 0; align-self: flex-end; }
     .translation-text { margin-top: 6px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.12); font-size: 0.75rem; color: rgba(255,255,255,0.5); line-height: 1.4; }
@@ -200,6 +200,12 @@
         oninput="document.documentElement.style.setProperty('--partner-bubble', this.value)">
       <button class="reset-color-btn" onclick="resetColor()" data-i18n="reset_default">恢复默认</button>
     </div>
+    <div class="tl-section-label" style="margin-top:12px" data-i18n="partner_text_color">对方文字颜色</div>
+    <div class="color-row">
+      <input type="color" id="partner-text-input" value="#e8e8e8"
+        oninput="document.documentElement.style.setProperty('--partner-text', this.value)">
+      <button class="reset-color-btn" onclick="resetTextColor()" data-i18n="reset_default">恢复默认</button>
+    </div>
     <div class="tl-section-label" style="margin-top:20px" data-i18n="interface_language">界面语言</div>
     <div class="lang-grid" id="chat-lang-grid">
       <button class="lang-btn" data-lang="zh" onclick="setChatLang('zh')">🇨🇳 中文</button>
@@ -267,6 +273,17 @@ function loadPartnerColor() {
   document.documentElement.style.setProperty('--partner-bubble', c);
 }
 loadPartnerColor();
+
+function loadPartnerTextColor() {
+  const c = localStorage.getItem('bridgeit_partner_text_color') || '#e8e8e8';
+  document.documentElement.style.setProperty('--partner-text', c);
+}
+loadPartnerTextColor();
+
+function resetTextColor() {
+  document.getElementById('partner-text-input').value = '#e8e8e8';
+  document.documentElement.style.setProperty('--partner-text', '#e8e8e8');
+}
 
 const socket = io({ auth: { token } });
 
@@ -525,6 +542,9 @@ async function openSettingsDrawer() {
   document.getElementById('drawer-overlay').classList.add('open');
   const input = document.getElementById('partner-color-input');
   if (input) input.value = _savedPartnerColor;
+  const savedTextColor = localStorage.getItem('bridgeit_partner_text_color') || '#e8e8e8';
+  const textInput = document.getElementById('partner-text-input');
+  if (textInput) textInput.value = savedTextColor;
   applyI18n();
   updateChatLangGrid();
 }
@@ -547,6 +567,11 @@ async function saveSettings() {
   localStorage.setItem('bridgeit_partner_color', color);
   document.documentElement.style.setProperty('--partner-bubble', color);
   _savedPartnerColor = color;
+  const textColorInput = document.getElementById('partner-text-input');
+  if (textColorInput) {
+    localStorage.setItem('bridgeit_partner_text_color', textColorInput.value);
+    document.documentElement.style.setProperty('--partner-text', textColorInput.value);
+  }
   try {
     await fetch(`/rooms/${roomId}/translate`, {
       method: 'PATCH',
