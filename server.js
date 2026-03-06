@@ -193,9 +193,10 @@ async function updateRoomMemory(roomId, topicSummary) {
     if (room) {
       if (!Array.isArray(room.topicHistory)) room.topicHistory = [];
       room.topicHistory.push(entry);
+      const countAfterPush = room.topicHistory.length;
       if (room.topicHistory.length > 20) room.topicHistory = room.topicHistory.slice(-20);
       saveRoomsFile(rooms);
-      if (room.topicHistory.length % 5 === 0) {
+      if (countAfterPush % 5 === 0) {
         await updateRelationshipProfile(roomId, room);
       }
     }
@@ -228,7 +229,7 @@ async function updateRelationshipProfile(roomId, room) {
 
 async function getTopicSummary(roomId, room) {
   const allMessages = await loadMessages(roomId);
-  // 找最近一个 topic-break 之前的消息（即当前话题的消息）
+  // 找最近一个 topic-break 之后的消息（即当前话题的消息）
   let endIdx = allMessages.length - 1;
   // 跳过最后的 topic-break 消息本身
   while (endIdx >= 0 && allMessages[endIdx].type === 'topic-break') endIdx--;
@@ -248,15 +249,17 @@ async function getTopicSummary(roomId, room) {
   const participants = await Promise.all(room.participants.map(id => findUserById(id)));
   const names = participants.map(u => u?.nickname || u?.id || 'User').join(' 和 ');
 
-  const resp = await openrouter.chat.completions.create({
-    model: AI_MODEL,
-    messages: [
-      { role: 'system', content: `You are BridgeIt. Summarize what ${names} mutually understood in this conversation topic in 1-2 warm sentences. Start with "在这段对话里" if Chinese is dominant, or "In this conversation" if English. Focus on what they understood about each other, not what happened.` },
-      { role: 'user', content: `Conversation:\n${convo.join('\n')}\n\nWrite the mutual understanding summary.` },
-    ],
-    temperature: 0.6,
-  });
-  return resp.choices[0].message.content.trim();
+  try {
+    const resp = await openrouter.chat.completions.create({
+      model: AI_MODEL,
+      messages: [
+        { role: 'system', content: `You are BridgeIt. Summarize what ${names} mutually understood in this conversation topic in 1-2 warm sentences. Start with "在这段对话里" if Chinese is dominant, or "In this conversation" if English. Focus on what they understood about each other, not what happened.` },
+        { role: 'user', content: `Conversation:\n${convo.join('\n')}\n\nWrite the mutual understanding summary.` },
+      ],
+      temperature: 0.6,
+    });
+    return resp.choices[0].message.content.trim();
+  } catch (e) { console.error('getTopicSummary AI error:', e.message); return null; }
 }
 
 // 获取某用户在某房间的 translateTo 配置（兼容旧的数组格式）
