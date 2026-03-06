@@ -40,6 +40,12 @@
     .heart-level { font-size: 0.6rem; font-weight: 700; margin-left: 3px; }
     @keyframes heartPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.4)} }
     .heart-chain.leveling .heart-item { animation: heartPulse 0.2s ease 2; }
+    @keyframes heartBeat { 0%,100%{transform:scale(1)} 12%{transform:scale(1.25)} 24%{transform:scale(1)} 36%{transform:scale(1.15)} 50%{transform:scale(1)} }
+    .heart-chain.online .heart-item.lit::before { animation: heartBeat 2.2s ease-in-out infinite; filter: drop-shadow(0 0 3px var(--heart-color, #ff9eb5)); }
+    .heart-chain.online .heart-item.lit:nth-child(2)::before { animation-delay: 0.12s; }
+    .heart-chain.online .heart-item.lit:nth-child(3)::before { animation-delay: 0.24s; }
+    .heart-chain.online .heart-item.lit:nth-child(4)::before { animation-delay: 0.36s; }
+    .heart-chain.online .heart-item.lit:nth-child(5)::before { animation-delay: 0.48s; }
 
     /* Hug animation overlay */
     @keyframes slideInLeft  { from{transform:translateX(-80px);opacity:0} to{transform:translateX(0);opacity:1} }
@@ -406,6 +412,7 @@ function showHugAnimation() {
 const socket = io({ auth: { token } });
 
 socket.on('connect', async () => {
+  document.getElementById('heart-chain')?.classList.add('online');
   await loadRoomConfig(); // must complete before rendering so translateTo order is correct
   socket.emit('join-room', roomId, ({ messages, error }) => {
     if (error) { window.location.href = '/home.html'; return; }
@@ -414,6 +421,10 @@ socket.on('connect', async () => {
       .forEach(m => renderAICard(m.analysis));
     scrollToBottom();
   });
+});
+
+socket.on('disconnect', () => {
+  document.getElementById('heart-chain')?.classList.remove('online');
 });
 
 socket.on('connect_error', () => window.location.href = '/login.html');
