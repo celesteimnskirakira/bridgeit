@@ -477,7 +477,7 @@ async function autoTitleConversation(convId, text) {
 }
 
 // ─── AI Prompt ───────────────────────────────────────────────
-function buildSystemPrompt(senderNickname, receiverNickname, translateTo) {
+function buildSystemPrompt(senderNickname, receiverNickname, translateTo, memory = null) {
   const langNames = { zh: 'Chinese', en: 'English', es: 'Spanish', ru: 'Russian', fr: 'French' };
   const translationFields = translateTo.map(lang =>
     `    "${lang}": "Natural ${langNames[lang] || lang} translation of the latest message"`
@@ -514,7 +514,10 @@ Rules:
 - translations: only include the languages specified (omit if translateTo is empty)
 - knowledgeBridge facts: exactly 2, narrowly targeted, each with data + named source
 - Never take sides. Focus on the emotional gap.
-- Respond in the language the receiver is most likely comfortable with for insight/advice.`;
+- Respond in the language the receiver is most likely comfortable with for insight/advice.${memory ? `
+
+【Relationship Context】
+${memory}` : ''}`;
 }
 
 // ─── Static Files ────────────────────────────────────────────
@@ -759,7 +762,18 @@ async function getAIAnalysis(latestMessage, room) {
   }));
 
   const translateTo = getAllTranslateTo(room);
-  const systemPrompt = buildSystemPrompt(senderName, receiverName, translateTo);
+  // 构建记忆上下文
+  let memory = null;
+  const history = (room.topicHistory || []).slice(-5);
+  if (history.length > 0 || room.relationshipProfile) {
+    const parts = [];
+    if (room.relationshipProfile) parts.push(`Relationship profile: ${room.relationshipProfile}`);
+    if (history.length > 0) {
+      parts.push('Recent topic summaries:\n' + history.map(h => `- ${h.summary}`).join('\n'));
+    }
+    memory = parts.join('\n');
+  }
+  const systemPrompt = buildSystemPrompt(senderName, receiverName, translateTo, memory);
 
   const resp = await openrouter.chat.completions.create({
     model: AI_MODEL,
