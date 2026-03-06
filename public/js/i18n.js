@@ -39,6 +39,7 @@ const I18N = {
     back_btn: '‹ 返回',
     chat_settings: '聊天设置',
     partner_bubble_color: '对方气泡颜色',
+    partner_text_color: '对方文字颜色',
     reset_default: '恢复默认',
   },
   en: {
@@ -76,6 +77,7 @@ const I18N = {
     back_btn: '‹ Back',
     chat_settings: 'Chat Settings',
     partner_bubble_color: 'Partner Bubble Color',
+    partner_text_color: 'Partner Text Color',
     reset_default: 'Reset to Default',
   },
   es: {
@@ -113,6 +115,7 @@ const I18N = {
     back_btn: '‹ Volver',
     chat_settings: 'Configuración de chat',
     partner_bubble_color: 'Color de burbuja del otro',
+    partner_text_color: 'Color de texto del otro',
     reset_default: 'Restablecer',
   },
   ru: {
@@ -150,6 +153,7 @@ const I18N = {
     back_btn: '‹ Назад',
     chat_settings: 'Настройки чата',
     partner_bubble_color: 'Цвет пузыря собеседника',
+    partner_text_color: 'Цвет текста собеседника',
     reset_default: 'Сбросить',
   },
   fr: {
@@ -187,6 +191,7 @@ const I18N = {
     back_btn: '‹ Retour',
     chat_settings: 'Paramètres du chat',
     partner_bubble_color: 'Couleur de bulle du partenaire',
+    partner_text_color: 'Couleur du texte du partenaire',
     reset_default: 'Réinitialiser',
   },
 };
