@@ -25,9 +25,9 @@
     .topbar-center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
     .topbar-name { color: white; font-weight: 700; font-size: 1.05rem; letter-spacing: -0.3px; }
     .topbar-dots { display: flex; align-items: center; gap: 5px; height: 8px; }
-    .tdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; transition: opacity 0.5s; }
-    .tdot-mine { background: linear-gradient(135deg, #ce93d8, #7986cb); }
-    .tdot-theirs { background: rgba(255,255,255,0.5); }
+    .tdot { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; font-size: 0.72rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: white; letter-spacing: 0; }
+    .tdot-mine { background: linear-gradient(135deg, var(--mine-bubble-1), var(--mine-bubble-2)); }
+    .tdot-theirs { background: rgba(255,255,255,0.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.18); }
     .topbar-btn { background: none; border: none; font-size: 1rem; cursor: pointer; color: rgba(255,255,255,0.4); padding: 6px; }
 
     /* Heart chain progress — pure CSS hearts, no emoji */
@@ -277,6 +277,10 @@ const user = JSON.parse(localStorage.getItem('bridgeit_user') || '{}');
 const myId = user.id || getMyId();
 
 document.getElementById('partner-name').textContent = partnerName;
+const _mineDot = document.querySelector('.tdot-mine');
+if (_mineDot) _mineDot.textContent = (user.nickname || '?')[0].toUpperCase();
+const _theirsDot = document.querySelector('.tdot-theirs');
+if (_theirsDot) _theirsDot.textContent = partnerName[0].toUpperCase();
 applyI18n();
 
 function setChatLang(code) {
