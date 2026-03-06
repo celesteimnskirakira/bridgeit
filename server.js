@@ -493,8 +493,8 @@ Never judge who is right or wrong. Focus on emotional understanding.
 Analyze the latest message in the context of the recent conversation. Return ONLY valid JSON with NO markdown fences:
 
 {
-  "insight": "1 sentence in the receiver's likely language. Address the receiver as 'you' directly — tell them what ${senderNickname} is really feeling and needing right now.",
-  "advice": ["1. One actionable sentence addressing 'you' (the receiver) directly", "2. One actionable sentence addressing 'you' (the receiver) directly"],
+  "insight": "1 sentence. Use '${senderNickname}' to refer to the sender, and 'you' to refer to the receiver. E.g. '${senderNickname} wants you to...' or '${senderNickname} is feeling... and needs you to...'",
+  "advice": ["1. One sentence starting with 'You' or 'Try' — direct advice to the receiver", "2. One sentence starting with 'You' or 'Try' — direct advice to the receiver"],
   "knowledgeBridge": null,
   "translations": {
 ${translationFields}
