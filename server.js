@@ -477,7 +477,7 @@ async function autoTitleConversation(convId, text) {
 }
 
 // ─── AI Prompt ───────────────────────────────────────────────
-function buildSystemPrompt(senderNickname, receiverNickname, translateTo, memory = null) {
+function buildSystemPrompt(senderNickname, receiverNickname, translateTo, memory = null, usedTopics = []) {
   const langNames = { zh: 'Chinese', en: 'English', es: 'Spanish', ru: 'Russian', fr: 'French' };
   const translationFields = translateTo.map(lang =>
     `    "${lang}": "Natural ${langNames[lang] || lang} translation of the latest message"`
@@ -513,6 +513,7 @@ Rules:
 - advice: exactly 2 actionable sentences for the receiver
 - translations: only include the languages specified (omit if translateTo is empty)
 - knowledgeBridge facts: exactly 2, narrowly targeted, each with data + named source
+- knowledgeBridge topic: must be NEW — do NOT repeat or paraphrase any topic already used in this conversation${usedTopics.length > 0 ? ': ' + usedTopics.join(', ') : ''}
 - Never take sides. Focus on the emotional gap.
 - Respond in the language the receiver is most likely comfortable with for insight/advice.${memory ? `
 
@@ -750,6 +751,11 @@ async function getAIAnalysis(latestMessage, room) {
   }
   const contextMessages = allMessages.slice(startIdx).filter(m => m.type !== 'topic-break');
 
+  // Collect KB topics already used in this topic to avoid repetition
+  const usedKBTopics = contextMessages
+    .map(m => m.analysis?.knowledgeBridge?.topic)
+    .filter(Boolean);
+
   // 按字数限制到最近 2000 字
   let charCount = 0;
   let windowStart = contextMessages.length - 1;
@@ -785,7 +791,7 @@ async function getAIAnalysis(latestMessage, room) {
     }
     memory = parts.join('\n');
   }
-  const systemPrompt = buildSystemPrompt(senderName, receiverName, translateTo, memory);
+  const systemPrompt = buildSystemPrompt(senderName, receiverName, translateTo, memory, usedKBTopics);
 
   const resp = await openrouter.chat.completions.create({
     model: AI_MODEL,
