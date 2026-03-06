@@ -604,6 +604,7 @@ app.get('/rooms', authMiddleware, async (req, res) => {
       partner: partner ? { id: partner.id, nickname: partner.nickname } : null,
       translateTo: getUserTranslateTo(room, req.userId),
       lastMessage: lastMsg ? { text: lastMsg.text, timestamp: lastMsg.timestamp } : null,
+      topicCount: room.topicCount || 0,
     };
   }));
   result.sort((a, b) => (b.lastMessage?.timestamp || 0) - (a.lastMessage?.timestamp || 0));
@@ -724,12 +725,14 @@ io.on('connection', async (socket) => {
 
     // 发送话题收尾卡片（如果有摘要）
     if (topicSummary) {
+      await updateRoomMemory(roomId, topicSummary);
+      const updatedRoom = await getRoomById(roomId);
       io.to(roomId).emit('topic-summary', {
         roomId,
         summary: topicSummary,
         timestamp: breakMsg.timestamp,
+        topicCount: updatedRoom?.topicCount || 0,
       });
-      await updateRoomMemory(roomId, topicSummary);
     }
 
     io.to(roomId).emit('topic-break', breakMsg);
