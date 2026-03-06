@@ -356,18 +356,13 @@ function showHugAnimation() {
   const scene = document.createElement('div');
   scene.style.cssText = 'display:flex; align-items:flex-end; justify-content:center; gap:6px; position:relative;';
 
-  const partnerBg = getComputedStyle(document.documentElement)
-    .getPropertyValue('--partner-bubble').trim() || 'rgba(100,181,246,0.85)';
-
   const left = document.createElement('div');
   left.className = 'hug-char left';
-  left.innerHTML = `<div class="hug-head" style="box-shadow:0 2px 18px rgba(179,136,255,0.7)"></div>
-    <div class="hug-body" style="box-shadow:0 4px 18px rgba(156,39,176,0.5)"></div>`;
+  left.innerHTML = `<div class="hug-head"></div><div class="hug-body"></div>`;
 
   const right = document.createElement('div');
   right.className = 'hug-char right';
-  right.innerHTML = `<div class="hug-head" style="box-shadow:0 2px 18px ${partnerBg}"></div>
-    <div class="hug-body" style="box-shadow:0 4px 18px ${partnerBg}"></div>`;
+  right.innerHTML = `<div class="hug-head"></div><div class="hug-body"></div>`;
 
   scene.appendChild(left);
   scene.appendChild(right);
@@ -383,8 +378,8 @@ function showHugAnimation() {
     const arms = document.createElement('div');
     arms.style.cssText = 'position:absolute; bottom:12px; left:50%; transform:translateX(-50%); pointer-events:none;';
     arms.innerHTML = `<svg viewBox="0 0 68 16" width="68" height="16" overflow="visible">
-      <path d="M4 13 Q34 1 64 13" stroke="rgba(179,136,255,0.9)" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M4 3 Q34 15 64 3" stroke="${partnerBg}" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.85"/>
+      <path d="M4 13 Q34 1 64 13" stroke="rgba(242,242,250,0.9)" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M4 3 Q34 15 64 3" stroke="rgba(242,242,250,0.75)" stroke-width="5" fill="none" stroke-linecap="round"/>
     </svg>`;
     scene.appendChild(arms);
 
