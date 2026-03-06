@@ -690,6 +690,13 @@ io.on('connection', async (socket) => {
   socket.on('new-topic-break', async ({ roomId }, cb) => {
     const room = await getRoomById(roomId);
     if (!room || !room.participants.includes(socket.userId)) return;
+
+    // 先生成话题收尾摘要（在 break 消息之前取消息）
+    let topicSummary = null;
+    try {
+      topicSummary = await getTopicSummary(roomId, room);
+    } catch (e) { console.error('getTopicSummary error:', e.message); }
+
     const breakMsg = {
       id: ++messageIdCounter,
       roomId,
@@ -698,6 +705,17 @@ io.on('connection', async (socket) => {
       timestamp: Date.now(),
     };
     await saveMessage(breakMsg);
+
+    // 发送话题收尾卡片（如果有摘要）
+    if (topicSummary) {
+      io.to(roomId).emit('topic-summary', {
+        roomId,
+        summary: topicSummary,
+        timestamp: breakMsg.timestamp,
+      });
+      await updateRoomMemory(roomId, topicSummary);
+    }
+
     io.to(roomId).emit('topic-break', breakMsg);
     cb?.({ ok: true });
   });
