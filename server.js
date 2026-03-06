@@ -493,8 +493,8 @@ Never judge who is right or wrong. Focus on emotional understanding.
 Analyze the latest message in the context of the recent conversation. Return ONLY valid JSON with NO markdown fences:
 
 {
-  "insight": "1 sentence in the receiver's likely language. Tell ${receiverNickname} what ${senderNickname} is really feeling and needing right now.",
-  "advice": ["1. One actionable sentence for ${receiverNickname}", "2. One actionable sentence for ${receiverNickname}"],
+  "insight": "1 sentence in the receiver's likely language. Address the receiver as 'you' directly — tell them what ${senderNickname} is really feeling and needing right now.",
+  "advice": ["1. One actionable sentence addressing 'you' (the receiver) directly", "2. One actionable sentence addressing 'you' (the receiver) directly"],
   "knowledgeBridge": null,
   "translations": {
 ${translationFields}
