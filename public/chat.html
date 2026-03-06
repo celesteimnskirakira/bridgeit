@@ -137,6 +137,15 @@
     .bm-lbl { font-size: 0.63rem; font-weight: 700; color: rgba(179,136,255,0.9); text-transform: uppercase; letter-spacing: 0.8px; }
     .bm-text { font-size: 0.84rem; color: rgba(255,255,255,0.82); line-height: 1.55; }
     .bm-time { font-size: 0.6rem; color: rgba(255,255,255,0.2); text-align: right; margin-top: 6px; }
+
+    /* Mobile: wider bubbles, traditional layout */
+    @media (max-width: 767px) {
+      .bubble { max-width: 75%; }
+      .msg-row.mine { padding-right: 10px; }
+      .theirs .bubble { margin-left: 10px; }
+      .nlabel.mine { margin-right: 10px; }
+      .nlabel.theirs { margin-left: 10px; }
+    }
   </style>
 </head>
 <body>
@@ -147,7 +156,7 @@
 </div>
 
 <div class="topbar">
-  <button class="back-btn" onclick="window.location.href='/home.html'">‹ 返回</button>
+  <button class="back-btn" onclick="window.location.href='/home.html'" data-i18n="back_btn">‹ 返回</button>
   <div class="topbar-center">
     <div class="topbar-name" id="partner-name">...</div>
     <div class="topbar-dots">
