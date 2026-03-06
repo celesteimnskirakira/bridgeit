@@ -140,9 +140,10 @@
 
     /* Mobile: wider bubbles, traditional layout */
     @media (max-width: 767px) {
-      .bubble { max-width: 75%; }
+      .bubble { max-width: 80%; }
       .msg-row.mine { padding-right: 10px; }
-      .theirs .bubble { margin-left: 10px; }
+      .mine .bubble { max-width: 80%; }
+      .theirs .bubble { margin-left: 10px; max-width: 80%; }
       .nlabel.mine { margin-right: 10px; }
       .nlabel.theirs { margin-left: 10px; }
     }
@@ -211,7 +212,7 @@
   </div>
 </div>
 
-<script src="/js/i18n.js"></script>
+<script src="/js/i18n.js?v=2"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const LANGS = [
@@ -260,7 +261,8 @@ let lastSenderId = null;
 let _savedPartnerColor = '#ffffff';
 
 function loadPartnerColor() {
-  const c = localStorage.getItem('bridgeit_partner_color') || 'rgba(255,255,255,0.12)';
+  let c = localStorage.getItem('bridgeit_partner_color') || 'rgba(255,255,255,0.12)';
+  if (c === '#ffffff') { c = 'rgba(255,255,255,0.12)'; localStorage.removeItem('bridgeit_partner_color'); }
   _savedPartnerColor = c;
   document.documentElement.style.setProperty('--partner-bubble', c);
 }
