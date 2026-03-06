@@ -36,6 +36,9 @@ const I18N = {
     share_hint: '把联系号发给想聊天的朋友',
     add_hint: '点右下角 + 输入对方联系号，立即开始对话',
     contact_id_own_ph: '设置你的联系号',
+    chat_settings: '聊天设置',
+    partner_bubble_color: '对方气泡颜色',
+    reset_default: '恢复默认',
   },
   en: {
     slogan: 'Bridge Understanding',
@@ -69,6 +72,9 @@ const I18N = {
     share_hint: 'Share your ID with a friend',
     add_hint: 'Tap + and enter their ID to start chatting',
     contact_id_own_ph: 'Choose your contact ID',
+    chat_settings: 'Chat Settings',
+    partner_bubble_color: 'Partner Bubble Color',
+    reset_default: 'Reset to Default',
   },
   es: {
     slogan: 'Construye comprensión',
@@ -102,6 +108,9 @@ const I18N = {
     share_hint: 'Comparte tu ID con un amigo',
     add_hint: 'Toca + e ingresa su ID para empezar a chatear',
     contact_id_own_ph: 'Elige tu ID de contacto',
+    chat_settings: 'Configuración de chat',
+    partner_bubble_color: 'Color de burbuja del otro',
+    reset_default: 'Restablecer',
   },
   ru: {
     slogan: 'Строй взаимопонимание',
@@ -135,6 +144,9 @@ const I18N = {
     share_hint: 'Поделитесь ID с другом',
     add_hint: 'Нажмите + и введите ID друга, чтобы начать',
     contact_id_own_ph: 'Придумайте ваш ID',
+    chat_settings: 'Настройки чата',
+    partner_bubble_color: 'Цвет пузыря собеседника',
+    reset_default: 'Сбросить',
   },
   fr: {
     slogan: 'Construire la compréhension',
@@ -168,6 +180,9 @@ const I18N = {
     share_hint: 'Partagez votre identifiant avec un ami',
     add_hint: 'Appuyez sur + et entrez son identifiant pour commencer',
     contact_id_own_ph: 'Choisissez votre identifiant',
+    chat_settings: 'Paramètres du chat',
+    partner_bubble_color: 'Couleur de bulle du partenaire',
+    reset_default: 'Réinitialiser',
   },
 };
 
