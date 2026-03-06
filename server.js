@@ -632,6 +632,18 @@ app.patch('/rooms/:roomId/translate', authMiddleware, async (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/rooms/:roomId/journal', authMiddleware, async (req, res) => {
+  const room = await getRoomById(req.params.roomId);
+  if (!room || !room.participants.includes(req.userId)) return res.status(403).json({ error: 'Forbidden' });
+  const partnerId = room.participants.find(id => id !== req.userId);
+  const partner = await findUserById(partnerId);
+  res.json({
+    topicHistory: (room.topicHistory || []).slice().reverse(), // newest first
+    relationshipProfile: room.relationshipProfile || null,
+    partnerName: partner?.nickname || partner?.contactId || '对方',
+  });
+});
+
 // ─── Socket.io Auth Middleware ────────────────────────────────
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
