@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bridge 日志</title>
+  <link rel="stylesheet" href="/css/mobile.css">
+  <style>
+    body { background: var(--dark-bg); overflow-y: auto; }
+    .bg-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .blob { position: absolute; border-radius: 50%; }
+    .blob-purple { width: 320px; height: 320px; top: -80px; left: -80px; background: radial-gradient(circle, rgba(123,31,162,0.38) 0%, transparent 68%); animation: blobFloat1 16s ease-in-out infinite; }
+    .blob-yellow { width: 280px; height: 280px; bottom: 60px; right: -60px; background: radial-gradient(circle, rgba(255,179,0,0.28) 0%, transparent 68%); animation: blobFloat2 20s ease-in-out infinite; }
+
+    .topbar { position: fixed; top: 0; left: 0; right: 0; height: 60px; background: rgba(13,13,26,0.75); backdrop-filter: blur(32px) saturate(180%); -webkit-backdrop-filter: blur(32px) saturate(180%); border-bottom: 1px solid rgba(255,255,255,0.07); display: flex; align-items: center; padding: 0 18px; gap: 10px; z-index: 100; }
+    .back-btn { color: rgba(255,255,255,0.55); font-size: 1rem; background: none; border: none; cursor: pointer; font-family: inherit; }
+    .topbar-title { flex: 1; text-align: center; font-weight: 700; font-size: 1rem; color: white; }
+
+    .content { padding: 76px 16px 32px; position: relative; z-index: 1; }
+
+    .profile-card { background: rgba(92,107,192,0.1); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(179,136,255,0.2); border-radius: 20px; padding: 16px 18px; margin-bottom: 24px; }
+    .profile-title { font-size: 0.65rem; font-weight: 700; color: rgba(179,136,255,0.7); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .profile-text { font-size: 0.88rem; color: rgba(255,255,255,0.8); line-height: 1.6; }
+    .profile-empty { font-size: 0.82rem; color: rgba(255,255,255,0.25); font-style: italic; }
+
+    .section-label { font-size: 0.65rem; font-weight: 700; color: rgba(255,255,255,0.3); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; padding-left: 2px; }
+
+    .moment-card { background: rgba(255,255,255,0.05); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.09); border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; }
+    .moment-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .moment-orb { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #9C27B0, #5C6BC0); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; flex-shrink: 0; }
+    .moment-lbl { font-size: 0.6rem; font-weight: 700; color: rgba(179,136,255,0.7); text-transform: uppercase; letter-spacing: 0.5px; flex: 1; }
+    .moment-time { font-size: 0.6rem; color: rgba(255,255,255,0.2); }
+    .moment-text { font-size: 0.85rem; color: rgba(255,255,255,0.82); line-height: 1.55; }
+
+    .empty-state { text-align: center; padding: 48px 24px; color: rgba(255,255,255,0.25); font-size: 0.88rem; }
+    .loading { text-align: center; padding: 48px 24px; color: rgba(255,255,255,0.3); font-size: 0.88rem; }
+  </style>
+</head>
+<body>
+<div class="bg-wrap">
+  <div class="blob blob-purple"></div>
+  <div class="blob blob-yellow"></div>
+</div>
+
+<div class="topbar">
+  <button class="back-btn" onclick="history.back()">‹ 返回</button>
+  <div class="topbar-title">🌉 Bridge 日志</div>
+  <div style="width:40px"></div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">加载中…</div>
+</div>
+
+<script>
+const token = localStorage.getItem('bridgeit_token');
+if (!token) window.location.href = '/login.html';
+
+const params = new URLSearchParams(location.search);
+const roomId = params.get('room');
+if (!roomId) window.location.href = '/home.html';
+
+function formatDate(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+async function load() {
+  try {
+    const res = await fetch(`/rooms/${encodeURIComponent(roomId)}/journal`, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) { document.getElementById('content').innerHTML = '<div class="empty-state">加载失败，请返回重试。</div>'; return; }
+    const data = await res.json();
+    render(data);
+  } catch (e) {
+    document.getElementById('content').innerHTML = '<div class="empty-state">加载失败，请检查网络连接。</div>';
+  }
+}
+
+function render({ topicHistory, relationshipProfile, partnerName }) {
+  let html = '';
+
+  // 关系画像
+  html += `<div class="profile-card">
+    <div class="profile-title">关系画像 · 与 ${escHtml(partnerName)}</div>`;
+  if (relationshipProfile) {
+    html += `<div class="profile-text">${escHtml(relationshipProfile)}</div>`;
+  } else {
+    html += `<div class="profile-empty">积累 5 段话题后，AI 将生成你们的关系画像。</div>`;
+  }
+  html += `</div>`;
+
+  // 时间线
+  html += `<div class="section-label">对话时刻</div>`;
+  if (!topicHistory || topicHistory.length === 0) {
+    html += `<div class="empty-state">换话题时，Bridge 会记录你们相互理解的瞬间。</div>`;
+  } else {
+    topicHistory.forEach(item => {
+      html += `<div class="moment-card">
+        <div class="moment-header">
+          <div class="moment-orb">🌉</div>
+          <div class="moment-lbl">Bridge Moment</div>
+          <div class="moment-time">${escHtml(formatDate(item.timestamp))}</div>
+        </div>
+        <div class="moment-text">${escHtml(item.summary)}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+load();
+</script>
+</body>
+</html>
