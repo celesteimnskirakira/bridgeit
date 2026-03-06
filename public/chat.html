@@ -50,8 +50,10 @@
     .bubble { max-width: calc(48% - 10px); min-width: 60px; padding: 10px 14px; font-size: 0.9rem; line-height: 1.5; word-break: break-word; animation: fadeUp 0.25s ease; }
     @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* Mine: purple, LEFT side */
-    .mine .bubble { margin-right: calc(50% + 10px); background: linear-gradient(140deg, rgba(156,39,176,0.78), rgba(92,107,192,0.72)); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(179,136,255,0.32); color: white; border-radius: 16px 16px 3px 16px; text-align: right; box-shadow: 0 4px 20px rgba(123,31,162,0.3); }
+    /* Mine: purple, LEFT side, right-aligned (near center) */
+    .msg-row.mine { padding-right: calc(50% + 10px); }
+    .mine .bubble { margin-left: auto; margin-right: 0; background: linear-gradient(140deg, rgba(156,39,176,0.78), rgba(92,107,192,0.72)); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(179,136,255,0.32); color: white; border-radius: 16px 16px 3px 16px; text-align: right; box-shadow: 0 4px 20px rgba(123,31,162,0.3); }
+    .mine .msg-time { order: -1; margin-right: 6px; }
     /* Theirs: glass, RIGHT side */
     .theirs .bubble { margin-left: calc(50% + 10px); background: var(--partner-bubble); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.9); border-radius: 16px 16px 16px 3px; box-shadow: 0 4px 20px rgba(0,0,0,0.18); }
 
