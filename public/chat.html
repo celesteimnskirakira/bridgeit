@@ -25,14 +25,33 @@
     .tdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; transition: opacity 0.5s; }
     .tdot-mine { background: linear-gradient(135deg, #ce93d8, #7986cb); }
     .tdot-theirs { background: rgba(255,255,255,0.5); }
-    .tline-offline { width: 20px; height: 1px; background: rgba(255,255,255,0.12); border-radius: 1px; }
-    .tline-online { width: 24px; height: 8px; position: relative; }
-    .tline-track { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, rgba(179,136,255,0.25), rgba(255,213,79,0.2)); transform: translateY(-50%); }
-    .tflow-dot { position: absolute; top: 50%; width: 3px; height: 3px; border-radius: 50%; background: rgba(255,213,79,0.9); transform: translate(-50%,-50%); animation: tflow 1.5s ease-in-out infinite; }
-    .tflow-dot:nth-child(2) { animation-delay: 0.5s; }
-    .tflow-dot:nth-child(3) { animation-delay: 1s; }
-    @keyframes tflow { 0%{left:0%;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{left:100%;opacity:0} }
     .topbar-btn { background: none; border: none; font-size: 1rem; cursor: pointer; color: rgba(255,255,255,0.4); padding: 6px; }
+
+    /* Heart chain progress */
+    .heart-chain { display: flex; align-items: center; gap: 2px; }
+    .heart-item { font-size: 0.8rem; transition: color 0.3s; }
+    .heart-level { font-size: 0.6rem; font-weight: 700; margin-left: 3px; }
+    @keyframes heartPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.4)} }
+    .heart-chain.leveling .heart-item { animation: heartPulse 0.2s ease 2; }
+
+    /* Hug animation overlay */
+    @keyframes slideInLeft  { from{transform:translateX(-80px);opacity:0} to{transform:translateX(0);opacity:1} }
+    @keyframes slideInRight { from{transform:translateX(80px);opacity:0}  to{transform:translateX(0);opacity:1} }
+    @keyframes hugPulse     { 0%,100%{transform:scale(1)} 50%{transform:scale(1.15)} }
+    @keyframes flyHeart     { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--tx),var(--ty)) scale(0.5);opacity:0} }
+    @keyframes overlayIn    { from{opacity:0} to{opacity:1} }
+    @keyframes overlayOut   { from{opacity:1} to{opacity:0} }
+
+    .hug-overlay { position:fixed; inset:0; z-index:999; background:rgba(13,13,26,0.75);
+      display:flex; align-items:center; justify-content:center; gap:0; pointer-events:none;
+      animation: overlayIn 0.15s ease forwards; }
+    .hug-overlay.leaving { animation: overlayOut 0.2s ease forwards; }
+    .hug-char { width:52px; height:52px; border-radius:50%; display:flex; align-items:center;
+      justify-content:center; font-size:1.6rem; }
+    .hug-char.left  { animation: slideInLeft  0.4s ease forwards; }
+    .hug-char.right { animation: slideInRight 0.4s ease forwards; }
+    .hug-char.hugging { animation: hugPulse 0.3s ease forwards; }
+    .hug-heart { position:absolute; font-size:1rem; animation: flyHeart 0.5s ease forwards; }
 
     /* ── Chat area ── */
     .chat-wrap { position: fixed; top: 64px; left: 0; right: 0; bottom: 60px; overflow-y: auto; padding: 14px 10px 6px; z-index: 1; -webkit-overflow-scrolling: touch; }
@@ -162,12 +181,13 @@
     <div class="topbar-name" id="partner-name">...</div>
     <div class="topbar-dots">
       <div class="tdot tdot-mine"></div>
-      <div class="tline-offline" id="tline-offline"></div>
-      <div class="tline-online" id="tline-online" style="display:none">
-        <div class="tline-track"></div>
-        <div class="tflow-dot"></div>
-        <div class="tflow-dot"></div>
-        <div class="tflow-dot"></div>
+      <div class="heart-chain" id="heart-chain">
+        <span class="heart-item">♡</span>
+        <span class="heart-item">♡</span>
+        <span class="heart-item">♡</span>
+        <span class="heart-item">♡</span>
+        <span class="heart-item">♡</span>
+        <span class="heart-level" id="heart-level"></span>
       </div>
       <div class="tdot tdot-theirs"></div>
     </div>
@@ -285,12 +305,81 @@ function resetTextColor() {
   document.documentElement.style.setProperty('--partner-text', '#e8e8e8');
 }
 
+// ── Heart Chain ─────────────────────────────────────────────────────────────
+const HEART_COLORS = ['#ff9eb5','#ff4d6d','#FFD54F','#ce93d8','url(#rainbow)'];
+const HEART_LEVEL_CHARS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩'];
+
+function updateHeartChain(topicCount, animate) {
+  const level    = Math.floor(topicCount / 5);
+  const lit      = topicCount % 5;
+  const colorIdx = Math.min(level, HEART_COLORS.length - 1);
+  const color    = HEART_COLORS[colorIdx];
+  const chain    = document.getElementById('heart-chain');
+  const levelEl  = document.getElementById('heart-level');
+  if (!chain) return;
+
+  const hearts = chain.querySelectorAll('.heart-item');
+  hearts.forEach((h, i) => {
+    h.textContent = i < lit ? '♥' : '♡';
+    h.style.color = i < lit ? color : 'rgba(255,255,255,0.2)';
+  });
+
+  levelEl.textContent = level > 0 ? (HEART_LEVEL_CHARS[Math.min(level, 9)] || `L${level+1}`) : '';
+  levelEl.style.color = color;
+
+  if (animate && lit === 0 && topicCount > 0) {
+    chain.classList.add('leveling');
+    setTimeout(() => chain.classList.remove('leveling'), 500);
+  }
+}
+
+function initHeartChain(topicCount) {
+  updateHeartChain(topicCount || 0, false);
+}
+
+// ── Hug Animation ────────────────────────────────────────────────────────────
+function showHugAnimation() {
+  const overlay = document.createElement('div');
+  overlay.className = 'hug-overlay';
+
+  const left  = document.createElement('div');
+  left.className = 'hug-char left';
+  left.textContent = '🧑';
+
+  const right = document.createElement('div');
+  right.className = 'hug-char right';
+  right.textContent = '🧑';
+
+  overlay.appendChild(left);
+  overlay.appendChild(right);
+  document.body.appendChild(overlay);
+
+  setTimeout(() => {
+    left.className  = 'hug-char hugging';
+    right.className = 'hug-char hugging';
+    left.textContent  = '🫂';
+    right.style.display = 'none';
+
+    const dirs = [
+      [-50,-60],[0,-70],[50,-60],[70,-20],[50,40],[0,60],[-50,40],[-70,-20]
+    ];
+    dirs.forEach(([tx, ty]) => {
+      const h = document.createElement('div');
+      h.className = 'hug-heart';
+      h.style.cssText = `--tx:${tx}px; --ty:${ty}px;`;
+      h.textContent = '♥';
+      h.style.color = '#ff9eb5';
+      overlay.appendChild(h);
+    });
+  }, 400);
+
+  setTimeout(() => overlay.classList.add('leaving'), 1000);
+  setTimeout(() => overlay.remove(), 1200);
+}
+
 const socket = io({ auth: { token } });
 
 socket.on('connect', async () => {
-  // Show online status
-  document.getElementById('tline-offline').style.display = 'none';
-  document.getElementById('tline-online').style.display = 'flex';
   await loadRoomConfig(); // must complete before rendering so translateTo order is correct
   socket.emit('join-room', roomId, ({ messages, error }) => {
     if (error) { window.location.href = '/home.html'; return; }
@@ -321,6 +410,7 @@ socket.on('topic-break', msg => { if (msg.roomId === roomId) renderItem(msg, tru
 socket.on('topic-summary', data => {
   if (data.roomId !== roomId) return;
   renderBridgeMoment(data.summary, data.timestamp);
+  if (data.topicCount != null) updateHeartChain(data.topicCount, true);
 });
 
 async function loadRoomConfig() {
@@ -330,6 +420,7 @@ async function loadRoomConfig() {
     const rooms = await res.json();
     const room = rooms.find(r => r.id === roomId);
     translateTo = room?.translateTo || [];
+    if (room?.topicCount != null) initHeartChain(room.topicCount);
   } catch (e) {}
 }
 
@@ -354,6 +445,7 @@ function sendMessage() {
 
 function sendTopicBreak() {
   if (!confirm(T('new_topic_dialog'))) return;
+  showHugAnimation();
   socket.emit('new-topic-break', { roomId });
 }
 
