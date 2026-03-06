@@ -30,22 +30,14 @@
     .tdot-theirs { background: rgba(255,255,255,0.5); }
     .topbar-btn { background: none; border: none; font-size: 1rem; cursor: pointer; color: rgba(255,255,255,0.4); padding: 6px; }
 
-    /* Heart chain progress — pure CSS hearts, no emoji */
-    .heart-chain { display: flex; align-items: center; gap: 3px; }
-    .heart-item { display:inline-block; width:13px; height:12px; position:relative; }
-    .heart-item::before { content:''; display:block; width:100%; height:100%;
-      clip-path: path('M 6.5 11 C 0 7 0 1.5 3.5 1 C 5 0.5 6 1.5 6.5 2.5 C 7 1.5 8 0.5 9.5 1 C 13 1.5 13 7 6.5 11 Z');
-      background: rgba(255,255,255,0.18); transition: background 0.3s; }
-    .heart-item.lit::before { background: var(--heart-color, #ff9eb5); }
-    .heart-level { font-size: 0.6rem; font-weight: 700; margin-left: 3px; }
-    @keyframes heartPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.4)} }
-    .heart-chain.leveling .heart-item { animation: heartPulse 0.2s ease 2; }
-    @keyframes heartBeat { 0%,100%{transform:scale(1)} 12%{transform:scale(1.25)} 24%{transform:scale(1)} 36%{transform:scale(1.15)} 50%{transform:scale(1)} }
-    .heart-chain.online .heart-item.lit::before { animation: heartBeat 2.2s ease-in-out infinite; filter: drop-shadow(0 0 3px var(--heart-color, #ff9eb5)); }
-    .heart-chain.online .heart-item.lit:nth-child(2)::before { animation-delay: 0.12s; }
-    .heart-chain.online .heart-item.lit:nth-child(3)::before { animation-delay: 0.24s; }
-    .heart-chain.online .heart-item.lit:nth-child(4)::before { animation-delay: 0.36s; }
-    .heart-chain.online .heart-item.lit:nth-child(5)::before { animation-delay: 0.48s; }
+    /* Connection line */
+    .tline-offline { width: 20px; height: 1px; background: rgba(255,255,255,0.12); border-radius: 1px; }
+    .tline-online { width: 24px; height: 8px; position: relative; }
+    .tline-track { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, rgba(179,136,255,0.25), rgba(255,213,79,0.2)); transform: translateY(-50%); }
+    .tflow-dot { position: absolute; top: 50%; width: 3px; height: 3px; border-radius: 50%; background: rgba(255,213,79,0.9); transform: translate(-50%,-50%); animation: tflow 1.5s ease-in-out infinite; }
+    .tflow-dot:nth-child(2) { animation-delay: 0.5s; }
+    .tflow-dot:nth-child(3) { animation-delay: 1s; }
+    @keyframes tflow { 0%{left:0%;opacity:0} 10%{opacity:1} 90%{opacity:1} 100%{left:100%;opacity:0} }
 
     /* Hug animation overlay */
     @keyframes slideInLeft  { from{transform:translateX(-80px);opacity:0} to{transform:translateX(0);opacity:1} }
@@ -203,13 +195,12 @@
     <div class="topbar-name" id="partner-name">...</div>
     <div class="topbar-dots">
       <div class="tdot tdot-mine"></div>
-      <div class="heart-chain" id="heart-chain">
-        <span class="heart-item"></span>
-        <span class="heart-item"></span>
-        <span class="heart-item"></span>
-        <span class="heart-item"></span>
-        <span class="heart-item"></span>
-        <span class="heart-level" id="heart-level"></span>
+      <div class="tline-offline" id="tline-offline"></div>
+      <div class="tline-online" id="tline-online" style="display:none">
+        <div class="tline-track"></div>
+        <div class="tflow-dot"></div>
+        <div class="tflow-dot"></div>
+        <div class="tflow-dot"></div>
       </div>
       <div class="tdot tdot-theirs"></div>
     </div>
@@ -412,7 +403,8 @@ function showHugAnimation() {
 const socket = io({ auth: { token } });
 
 socket.on('connect', async () => {
-  document.getElementById('heart-chain')?.classList.add('online');
+  document.getElementById('tline-offline').style.display = 'none';
+  document.getElementById('tline-online').style.display = 'flex';
   await loadRoomConfig(); // must complete before rendering so translateTo order is correct
   socket.emit('join-room', roomId, ({ messages, error }) => {
     if (error) { window.location.href = '/home.html'; return; }
@@ -424,7 +416,8 @@ socket.on('connect', async () => {
 });
 
 socket.on('disconnect', () => {
-  document.getElementById('heart-chain')?.classList.remove('online');
+  document.getElementById('tline-offline').style.display = '';
+  document.getElementById('tline-online').style.display = 'none';
 });
 
 socket.on('connect_error', () => window.location.href = '/login.html');
