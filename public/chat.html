@@ -25,9 +25,9 @@
     .topbar-center { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
     .topbar-name { color: white; font-weight: 700; font-size: 1.05rem; letter-spacing: -0.3px; }
     .topbar-dots { display: flex; align-items: center; gap: 5px; height: 8px; }
-    .tdot { width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
-    .tdot-mine { background: linear-gradient(135deg, var(--mine-bubble-1), var(--mine-bubble-2)); }
-    .tdot-theirs { background: rgba(255,255,255,0.12); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.18); }
+    .tdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+    .tdot-mine { background: linear-gradient(135deg, #ce93d8, #7986cb); }
+    .tdot-theirs { background: rgba(255,255,255,0.5); }
     .topbar-btn { background: none; border: none; font-size: 1rem; cursor: pointer; color: rgba(255,255,255,0.4); padding: 6px; }
 
     /* Heart chain progress — pure CSS hearts, no emoji */
@@ -196,7 +196,7 @@
   <div class="topbar-center">
     <div class="topbar-name" id="partner-name">...</div>
     <div class="topbar-dots">
-      <div class="tdot tdot-mine"><svg viewBox="0 0 24 24" width="15" height="15" fill="rgba(255,255,255,0.92)"><circle cx="12" cy="7.5" r="4.5"/><path d="M3 22c0-4.97 4.03-9 9-9s9 4.03 9 9" fill="rgba(255,255,255,0.92)"/></svg></div>
+      <div class="tdot tdot-mine"></div>
       <div class="heart-chain" id="heart-chain">
         <span class="heart-item"></span>
         <span class="heart-item"></span>
@@ -205,7 +205,7 @@
         <span class="heart-item"></span>
         <span class="heart-level" id="heart-level"></span>
       </div>
-      <div class="tdot tdot-theirs"><svg viewBox="0 0 24 24" width="15" height="15" fill="rgba(255,255,255,0.75)"><circle cx="12" cy="7.5" r="4.5"/><path d="M3 22c0-4.97 4.03-9 9-9s9 4.03 9 9" fill="rgba(255,255,255,0.75)"/></svg></div>
+      <div class="tdot tdot-theirs"></div>
     </div>
   </div>
   <button class="topbar-btn" onclick="openJournal()" title="Bridge 日志">📖</button>
