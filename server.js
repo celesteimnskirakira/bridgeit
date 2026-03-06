@@ -177,14 +177,17 @@ async function updateRoomTranslate(roomId, userId, langs) {
 async function updateRoomMemory(roomId, topicSummary) {
   const entry = { timestamp: Date.now(), summary: topicSummary };
   if (useDB) {
-    // 追加到 topicHistory，保留最近 20 条
+    // 追加到 topicHistory，保留最近 20 条，同时累加 topicCount
     await roomsCollection.updateOne(
       { id: roomId },
-      { $push: { topicHistory: { $each: [entry], $slice: -20 } } }
+      {
+        $push: { topicHistory: { $each: [entry], $slice: -20 } },
+        $inc: { topicCount: 1 },
+      }
     );
     // 每 5 条更新一次 relationshipProfile
     const room = await getRoomById(roomId);
-    if (room && room.topicHistory && room.topicHistory.length % 5 === 0) {
+    if (room && room.topicCount % 5 === 0) {
       await updateRelationshipProfile(roomId, room);
     }
   } else {
@@ -193,10 +196,10 @@ async function updateRoomMemory(roomId, topicSummary) {
     if (room) {
       if (!Array.isArray(room.topicHistory)) room.topicHistory = [];
       room.topicHistory.push(entry);
-      const countAfterPush = room.topicHistory.length;
       if (room.topicHistory.length > 20) room.topicHistory = room.topicHistory.slice(-20);
+      room.topicCount = (room.topicCount || 0) + 1;
       saveRoomsFile(rooms);
-      if (countAfterPush % 5 === 0) {
+      if (room.topicCount % 5 === 0) {
         await updateRelationshipProfile(roomId, room);
       }
     }
@@ -247,7 +250,7 @@ async function getTopicSummary(roomId, room) {
   }));
 
   const participants = await Promise.all(room.participants.map(id => findUserById(id)));
-  const names = participants.map(u => u?.nickname || u?.id || 'User').join(' 和 ');
+  const names = participants.map(u => u?.nickname || u?.id || 'User').join(' & ');
 
   try {
     const resp = await openrouter.chat.completions.create({
