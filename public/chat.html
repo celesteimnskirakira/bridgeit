@@ -7,7 +7,7 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="/css/mobile.css">
   <style>
-    :root { --partner-bubble: #ffffff; }
+    :root { --partner-bubble: rgba(255,255,255,0.12); }
     body { background: var(--dark-bg); overflow: hidden; }
 
     /* ── Background blobs ── */
@@ -249,7 +249,7 @@ let lastSenderId = null;
 let _savedPartnerColor = '#ffffff';
 
 function loadPartnerColor() {
-  const c = localStorage.getItem('bridgeit_partner_color') || '#ffffff';
+  const c = localStorage.getItem('bridgeit_partner_color') || 'rgba(255,255,255,0.12)';
   _savedPartnerColor = c;
   document.documentElement.style.setProperty('--partner-bubble', c);
 }
@@ -506,7 +506,7 @@ function hideThinking() { document.getElementById('thinking-indicator')?.remove(
 // ── Translation drawer ──────────────────────────────────────────────────────
 
 async function openSettingsDrawer() {
-  _savedPartnerColor = localStorage.getItem('bridgeit_partner_color') || '#ffffff';
+  _savedPartnerColor = localStorage.getItem('bridgeit_partner_color') || 'rgba(255,255,255,0.12)';
   await loadRoomConfig();
   renderTranslateDrawer();
   document.getElementById('drawer-overlay').classList.add('open');
@@ -523,7 +523,7 @@ function closeSettingsDrawer() {
 
 function resetColor() {
   document.getElementById('partner-color-input').value = '#ffffff';
-  document.documentElement.style.setProperty('--partner-bubble', '#ffffff');
+  document.documentElement.style.setProperty('--partner-bubble', 'rgba(255,255,255,0.12)');
 }
 
 async function saveSettings() {
