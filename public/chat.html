@@ -378,11 +378,13 @@ function showHugAnimation() {
     scene.style.gap = '2px';
 
     // Crossed arms SVG between them
+    const mineC1 = getComputedStyle(document.documentElement).getPropertyValue('--mine-bubble-1').trim() || 'rgba(156,39,176,0.85)';
+    const mineC2 = getComputedStyle(document.documentElement).getPropertyValue('--mine-bubble-2').trim() || 'rgba(92,107,192,0.75)';
     const arms = document.createElement('div');
     arms.style.cssText = 'position:absolute; bottom:12px; left:50%; transform:translateX(-50%); pointer-events:none;';
     arms.innerHTML = `<svg viewBox="0 0 68 16" width="68" height="16" overflow="visible">
-      <path d="M4 13 Q34 1 64 13" stroke="rgba(242,242,250,0.9)" stroke-width="5" fill="none" stroke-linecap="round"/>
-      <path d="M4 3 Q34 15 64 3" stroke="rgba(242,242,250,0.75)" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M4 13 Q34 1 64 13" stroke="${mineC1}" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M4 3 Q34 15 64 3" stroke="${mineC2}" stroke-width="5" fill="none" stroke-linecap="round"/>
     </svg>`;
     scene.appendChild(arms);
 
