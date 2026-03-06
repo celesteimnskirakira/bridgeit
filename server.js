@@ -174,6 +174,91 @@ async function updateRoomTranslate(roomId, userId, langs) {
   }
 }
 
+async function updateRoomMemory(roomId, topicSummary) {
+  const entry = { timestamp: Date.now(), summary: topicSummary };
+  if (useDB) {
+    // 追加到 topicHistory，保留最近 20 条
+    await roomsCollection.updateOne(
+      { id: roomId },
+      { $push: { topicHistory: { $each: [entry], $slice: -20 } } }
+    );
+    // 每 5 条更新一次 relationshipProfile
+    const room = await getRoomById(roomId);
+    if (room && room.topicHistory && room.topicHistory.length % 5 === 0) {
+      await updateRelationshipProfile(roomId, room);
+    }
+  } else {
+    const rooms = loadRoomsFile();
+    const room = rooms.find(r => r.id === roomId);
+    if (room) {
+      if (!Array.isArray(room.topicHistory)) room.topicHistory = [];
+      room.topicHistory.push(entry);
+      if (room.topicHistory.length > 20) room.topicHistory = room.topicHistory.slice(-20);
+      saveRoomsFile(rooms);
+      if (room.topicHistory.length % 5 === 0) {
+        await updateRelationshipProfile(roomId, room);
+      }
+    }
+  }
+}
+
+async function updateRelationshipProfile(roomId, room) {
+  try {
+    const history = (room.topicHistory || []).slice(-10);
+    if (history.length < 2) return;
+    const summaries = history.map((h, i) => `${i + 1}. ${h.summary}`).join('\n');
+    const resp = await openrouter.chat.completions.create({
+      model: AI_MODEL,
+      messages: [
+        { role: 'system', content: 'You are analyzing the long-term communication patterns of two people based on their conversation summaries. Write a 2-3 sentence relationship profile describing their recurring patterns, communication styles, and areas of shared understanding. Be warm, specific, and non-judgmental. Write in the language most common in the summaries.' },
+        { role: 'user', content: `Conversation topic summaries:\n${summaries}\n\nWrite a relationship profile for these two people.` },
+      ],
+      temperature: 0.6,
+    });
+    const profile = resp.choices[0].message.content.trim();
+    if (useDB) {
+      await roomsCollection.updateOne({ id: roomId }, { $set: { relationshipProfile: profile } });
+    } else {
+      const rooms = loadRoomsFile();
+      const r = rooms.find(r => r.id === roomId);
+      if (r) { r.relationshipProfile = profile; saveRoomsFile(rooms); }
+    }
+  } catch (e) { console.error('updateRelationshipProfile error:', e.message); }
+}
+
+async function getTopicSummary(roomId, room) {
+  const allMessages = await loadMessages(roomId);
+  // 找最近一个 topic-break 之前的消息（即当前话题的消息）
+  let endIdx = allMessages.length - 1;
+  // 跳过最后的 topic-break 消息本身
+  while (endIdx >= 0 && allMessages[endIdx].type === 'topic-break') endIdx--;
+  // 找前一个 topic-break
+  let startIdx = 0;
+  for (let i = endIdx; i >= 0; i--) {
+    if (allMessages[i].type === 'topic-break') { startIdx = i + 1; break; }
+  }
+  const topicMessages = allMessages.slice(startIdx, endIdx + 1).filter(m => m.type !== 'topic-break');
+  if (topicMessages.length === 0) return null;
+
+  const convo = await Promise.all(topicMessages.map(async m => {
+    const u = await findUserById(m.senderId);
+    return `[${u?.nickname || m.senderId}]: ${m.text}`;
+  }));
+
+  const participants = await Promise.all(room.participants.map(id => findUserById(id)));
+  const names = participants.map(u => u?.nickname || u?.id || 'User').join(' 和 ');
+
+  const resp = await openrouter.chat.completions.create({
+    model: AI_MODEL,
+    messages: [
+      { role: 'system', content: `You are BridgeIt. Summarize what ${names} mutually understood in this conversation topic in 1-2 warm sentences. Start with "在这段对话里" if Chinese is dominant, or "In this conversation" if English. Focus on what they understood about each other, not what happened.` },
+      { role: 'user', content: `Conversation:\n${convo.join('\n')}\n\nWrite the mutual understanding summary.` },
+    ],
+    temperature: 0.6,
+  });
+  return resp.choices[0].message.content.trim();
+}
+
 // 获取某用户在某房间的 translateTo 配置（兼容旧的数组格式）
 function getUserTranslateTo(room, userId) {
   if (!room.translateTo) return [];
