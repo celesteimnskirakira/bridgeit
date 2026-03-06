@@ -101,17 +101,28 @@
   <button onclick="openSettings()" id="avatar-btn">👤</button>
 </div>
 
-<div class="main-content">
-  <div id="section-title-wrap"></div>
-  <div class="room-list" id="room-list">
-    <div class="empty-state">
-      <h3 data-i18n="no_conversations">还没有对话</h3>
-      <p data-i18n="add_friend_hint">点右下角 + 添加好友</p>
+<div class="desktop-shell">
+  <div class="sidebar">
+    <div class="main-content">
+      <div id="section-title-wrap"></div>
+      <div class="room-list" id="room-list">
+        <div class="empty-state">
+          <h3 data-i18n="no_conversations">还没有对话</h3>
+          <p data-i18n="add_friend_hint">点右下角 + 添加好友</p>
+        </div>
+      </div>
     </div>
+    <button class="fab" onclick="openAddFriend()">+</button>
+  </div>
+  <div class="main-panel" id="main-panel">
+    <div class="welcome-placeholder" id="welcome-placeholder">
+      <div class="wp-icon">🌉</div>
+      <div class="wp-title">BridgeIt</div>
+      <div class="wp-hint">选择一个对话开始</div>
+    </div>
+    <iframe id="chat-frame" class="chat-frame" style="display:none"></iframe>
   </div>
 </div>
-
-<button class="fab" onclick="openAddFriend()">+</button>
 
 <!-- 设置抽屉 -->
 <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()">
@@ -200,7 +211,7 @@
       const theirInitial = name[0].toUpperCase();
       const preview = room.lastMessage?.text ? escHtml(room.lastMessage.text.slice(0, 40)) : escHtml(T('start_chat'));
       const time = room.lastMessage?.timestamp ? formatTime(room.lastMessage.timestamp) : '';
-      return `<div class="room-item" onclick="enterRoom('${room.id}', '${escHtml(name)}')">
+      return `<div class="room-item" data-room="${room.id}" onclick="enterRoom('${room.id}', '${escHtml(name)}')">
         <div class="connection-row">
           <div class="conn-avatar mine-av">${myInitial}</div>
           <div class="conn-line"></div>
@@ -220,7 +231,17 @@
   function enterRoom(roomId, partnerName) {
     localStorage.setItem('bridgeit_current_room', roomId);
     localStorage.setItem('bridgeit_partner_name', partnerName);
-    window.location.href = '/chat.html';
+    if (window.innerWidth >= 768) {
+      document.getElementById('welcome-placeholder').style.display = 'none';
+      const frame = document.getElementById('chat-frame');
+      frame.style.display = 'block';
+      frame.src = '/chat.html?room=' + encodeURIComponent(roomId) + '&embedded=1';
+      document.querySelectorAll('.room-item').forEach(el => el.classList.remove('active'));
+      const activeEl = document.querySelector(`.room-item[data-room="${roomId}"]`);
+      if (activeEl) activeEl.classList.add('active');
+    } else {
+      window.location.href = '/chat.html';
+    }
   }
 
   function openAddFriend() {
