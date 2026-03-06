@@ -107,6 +107,9 @@
     .drawer-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin: 0 auto 20px; }
     .drawer h3 { font-size: 1rem; margin-bottom: 16px; color: rgba(255,255,255,0.85); }
     .tl-section-label { font-size: 0.68rem; color: rgba(255,255,255,0.4); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; margin-top: 4px; }
+    .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .lang-btn { padding: 8px 6px; background: rgba(255,255,255,0.06); border: 1.5px solid rgba(255,255,255,0.1); border-radius: 10px; color: rgba(255,255,255,0.75); font-size: 0.8rem; cursor: pointer; font-family: inherit; transition: all 0.15s; text-align: center; }
+    .lang-btn.selected { border-color: rgba(179,136,255,0.6); background: rgba(156,39,176,0.18); color: white; }
     .tl-order-list { margin-bottom: 16px; }
     .tl-item { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: rgba(255,179,0,0.08); border: 1px solid rgba(255,179,0,0.15); border-radius: 10px; margin-bottom: 6px; touch-action: none; user-select: none; }
     .drag-handle { color: rgba(255,213,79,0.4); font-size: 1.1rem; cursor: grab; flex-shrink: 0; line-height: 1; }
@@ -185,6 +188,14 @@
         oninput="document.documentElement.style.setProperty('--partner-bubble', this.value)">
       <button class="reset-color-btn" onclick="resetColor()" data-i18n="reset_default">恢复默认</button>
     </div>
+    <div class="tl-section-label" style="margin-top:20px" data-i18n="interface_language">界面语言</div>
+    <div class="lang-grid" id="chat-lang-grid">
+      <button class="lang-btn" data-lang="zh" onclick="setChatLang('zh')">🇨🇳 中文</button>
+      <button class="lang-btn" data-lang="en" onclick="setChatLang('en')">🇺🇸 English</button>
+      <button class="lang-btn" data-lang="es" onclick="setChatLang('es')">🇪🇸 Español</button>
+      <button class="lang-btn" data-lang="ru" onclick="setChatLang('ru')">🇷🇺 Русский</button>
+      <button class="lang-btn" data-lang="fr" onclick="setChatLang('fr')">🇫🇷 Français</button>
+    </div>
     <button class="btn-primary" onclick="saveSettings()" data-i18n="save">保存</button>
   </div>
 </div>
@@ -204,6 +215,11 @@ const token = localStorage.getItem('bridgeit_token');
 const roomId = localStorage.getItem('bridgeit_current_room');
 const partnerName = localStorage.getItem('bridgeit_partner_name') || '...';
 
+const isEmbedded = new URLSearchParams(location.search).get('embedded') === '1';
+if (isEmbedded) {
+  document.querySelector('.back-btn').style.display = 'none';
+}
+
 if (!token || !roomId) window.location.href = '/home.html';
 
 function getMyId() {
@@ -214,6 +230,19 @@ const myId = user.id || getMyId();
 
 document.getElementById('partner-name').textContent = partnerName;
 applyI18n();
+
+function setChatLang(code) {
+  localStorage.setItem('bridgeit_lang', code);
+  applyI18n();
+  updateChatLangGrid();
+}
+
+function updateChatLangGrid() {
+  const cur = getLang();
+  document.querySelectorAll('#chat-lang-grid .lang-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.lang === cur);
+  });
+}
 
 let translateTo = [];
 let lastSenderId = null;
@@ -484,6 +513,7 @@ async function openSettingsDrawer() {
   const input = document.getElementById('partner-color-input');
   if (input) input.value = _savedPartnerColor;
   applyI18n();
+  updateChatLangGrid();
 }
 
 function closeSettingsDrawer() {
