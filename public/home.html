@@ -79,6 +79,14 @@
     .lang-btn.selected { border-color: rgba(179,136,255,0.5); background: rgba(156,39,176,0.15); color: #ce93d8; font-weight: 600; }
     .logout-btn { width: 100%; padding: 12px; background: none; border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; color: rgba(255,255,255,0.4); font-size: 0.9rem; cursor: pointer; font-family: inherit; }
 
+    /* Profile section in settings drawer */
+    .profile-section { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding:14px 16px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.08); border-radius:16px; }
+    .profile-avatar { width:48px; height:48px; border-radius:50%; background:linear-gradient(135deg, var(--mine-bubble-1), var(--mine-bubble-2)); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.2rem; color:white; flex-shrink:0; }
+    .profile-info { flex:1; min-width:0; }
+    .profile-name { font-size:0.95rem; font-weight:700; color:rgba(255,255,255,0.85); margin-bottom:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .profile-id-btn { display:inline-flex; align-items:center; gap:6px; background:rgba(156,39,176,0.15); border:1px solid rgba(179,136,255,0.3); color:#ce93d8; border-radius:20px; padding:5px 12px; font-size:0.82rem; cursor:pointer; font-family:inherit; transition:opacity 0.15s; }
+    .profile-id-btn:active { opacity:0.7; }
+
     /* Add friend drawer */
     .add-friend-drawer { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(18,18,32,0.95); backdrop-filter: blur(40px); -webkit-backdrop-filter: blur(40px); border: 1px solid rgba(255,255,255,0.1); border-bottom: none; border-radius: 24px 24px 0 0; padding: 16px 20px 40px; z-index: 201; }
     .add-friend-drawer h3 { font-size: 1rem; margin-bottom: 16px; color: rgba(255,255,255,0.85); }
@@ -129,6 +137,16 @@
 <div class="settings-overlay" id="settings-overlay" onclick="closeSettings()">
   <div class="settings-drawer" onclick="event.stopPropagation()">
     <div class="drawer-handle"></div>
+    <div class="profile-section">
+      <div class="profile-avatar" id="settings-avatar"></div>
+      <div class="profile-info">
+        <div class="profile-name" id="settings-nickname"></div>
+        <button class="profile-id-btn" id="settings-copy-btn" onclick="copyMyId()">
+          <span id="settings-contact-id"></span>
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="none"><rect x="5" y="5" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M3 11V3a1 1 0 0 1 1-1h8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
     <h3 data-i18n="interface_language">界面语言</h3>
     <div class="lang-grid" id="lang-grid">
       <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">🇨🇳 中文</button>
@@ -295,8 +313,22 @@
     document.querySelectorAll('.lang-btn').forEach(btn => {
       btn.classList.toggle('selected', btn.dataset.lang === lang);
     });
+    // Fill profile info
+    const initial = (user.nickname || user.contactId || '?')[0].toUpperCase();
+    document.getElementById('settings-avatar').textContent = initial;
+    document.getElementById('settings-nickname').textContent = user.nickname || user.contactId || '';
+    document.getElementById('settings-contact-id').textContent = '#' + (user.contactId || '');
   }
   function closeSettings() { document.getElementById('settings-overlay').classList.remove('open'); }
+
+  function copyMyId() {
+    navigator.clipboard.writeText(user.contactId || '').then(() => {
+      const idSpan = document.getElementById('settings-contact-id');
+      const orig = idSpan.textContent;
+      idSpan.textContent = '已复制 ✓';
+      setTimeout(() => { idSpan.textContent = orig; }, 1500);
+    }).catch(() => {});
+  }
 
   async function setLang(lang) {
     localStorage.setItem('bridgeit_lang', lang);

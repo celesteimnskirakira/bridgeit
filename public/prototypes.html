@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BridgeIt — 视觉改进原型</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d1a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:24px 16px 48px;min-height:100vh}
+
+.ph{text-align:center;margin-bottom:32px}
+.ph h1{font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,#ce93d8,#FFD54F);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;letter-spacing:-.3px}
+.ph p{font-size:.75rem;color:rgba(255,255,255,.28)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;max-width:980px;margin:0 auto}
+
+.card{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px;overflow:hidden}
+.cn{font-size:.58rem;font-weight:700;color:rgba(179,136,255,.55);letter-spacing:1.2px;text-transform:uppercase;margin-bottom:3px}
+.ct{font-size:.9rem;font-weight:700;color:rgba(255,255,255,.88);margin-bottom:13px}
+.demo{position:relative;height:160px;border-radius:12px;background:rgba(0,0,0,.28);overflow:hidden;display:flex;align-items:center;justify-content:center}
+
+/* ══════════════ ① Particle Trail ══════════════ */
+.p1{width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:12px;position:relative}
+.p1-bubble{align-self:flex-end;background:linear-gradient(140deg,rgba(156,39,176,.8),rgba(92,107,192,.74));border-radius:14px 14px 3px 14px;padding:8px 13px;font-size:.8rem;border:1px solid rgba(179,136,255,.28);backdrop-filter:blur(10px)}
+.p1-row{display:flex;gap:8px;align-items:center}
+.p1-inp{flex:1;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:7px 13px;font-size:.74rem;color:rgba(255,255,255,.32)}
+.p1-btn{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#9C27B0,#5C6BC0);border:none;cursor:pointer;color:#fff;font-size:.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;position:relative;z-index:5;transition:transform .1s}
+.p1-btn:active{transform:scale(.88)}
+
+@keyframes pFly{0%{transform:translate(0,0) scale(1.3);opacity:1}100%{transform:translate(var(--px),var(--py)) scale(0);opacity:0}}
+.ptcl{position:absolute;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:20;animation:pFly .55s cubic-bezier(.2,.8,.4,1) forwards}
+
+/* ══════════════ ② AI Scan ══════════════ */
+.p2w{width:88%}
+.p2-card{background:rgba(255,179,0,.06);border:1px solid rgba(255,179,0,.22);border-radius:13px;padding:13px;position:relative;overflow:hidden;animation:cardGlow 2.8s ease-in-out infinite}
+@keyframes cardGlow{0%,100%{box-shadow:0 0 6px rgba(255,179,0,.2)}50%{box-shadow:0 0 22px rgba(255,179,0,.5),0 0 40px rgba(255,179,0,.1)}}
+.p2-scan{position:absolute;top:0;left:-45%;width:38%;height:100%;background:linear-gradient(90deg,transparent,rgba(255,213,79,.18),transparent);animation:scanLine 2.8s ease-in-out infinite;pointer-events:none}
+@keyframes scanLine{0%{left:-45%}100%{left:130%}}
+.p2-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.p2-orb{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#FFD54F,#FFA000);flex-shrink:0;box-shadow:0 0 10px rgba(255,179,0,.5)}
+.p2-lbl{font-size:.68rem;font-weight:700;color:#FFD54F;letter-spacing:.5px}
+.p2-body{font-size:.76rem;color:rgba(255,255,255,.8);line-height:1.55;margin-bottom:5px}
+.p2-adv{font-size:.71rem;color:rgba(255,213,79,.72)}
+.p2-adv::before{content:'· '}
+.reveal{animation:revealIn 2.8s ease-out infinite}
+.reveal:nth-child(2){animation-delay:.25s}
+.reveal:nth-child(3){animation-delay:.5s}
+.reveal.p2-adv{animation-delay:.7s}
+@keyframes revealIn{0%,8%{opacity:0;transform:translateY(3px)}35%,100%{opacity:1;transform:translateY(0)}}
+
+/* ══════════════ ③ Blob Response ══════════════ */
+.p3{width:100%;height:100%;position:relative;overflow:hidden;cursor:pointer}
+.p3-b1{position:absolute;width:115px;height:115px;border-radius:50%;background:radial-gradient(circle,rgba(123,31,162,.65) 0%,transparent 70%);top:0;left:-10px;transition:all 1.5s cubic-bezier(.25,.46,.45,.94);pointer-events:none}
+.p3-b2{position:absolute;width:75px;height:75px;border-radius:50%;background:radial-gradient(circle,rgba(255,179,0,.32) 0%,transparent 70%);bottom:20px;right:-5px;transition:all 1.5s cubic-bezier(.25,.46,.45,.94) .15s;pointer-events:none}
+.p3.on .p3-b1{top:48px;left:22px;width:135px;height:135px}
+.p3.on .p3-b2{bottom:45px;right:8px;width:88px;height:88px}
+.p3-inp{position:absolute;bottom:13px;left:10px;right:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:8px 14px;font-size:.73rem;color:rgba(255,255,255,.28);transition:border-color .4s,box-shadow .45s,color .4s;pointer-events:none}
+.p3.on .p3-inp{border-color:rgba(179,136,255,.55);box-shadow:0 0 20px rgba(156,39,176,.3);color:rgba(255,255,255,.72)}
+.p3-hint{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:.6rem;color:rgba(255,255,255,.2);white-space:nowrap;pointer-events:none}
+.p3-status{position:absolute;top:10px;right:12px;font-size:.6rem;color:rgba(179,136,255,.45);pointer-events:none}
+
+/* ══════════════ ④ Topic Divider ══════════════ */
+.p4{width:92%;display:flex;flex-direction:column;align-items:center;gap:22px}
+.p4-old{width:100%;display:flex;align-items:center;gap:8px;opacity:.35}
+.p4-oldl{flex:1;height:1px;background:rgba(255,255,255,.12)}
+.p4-oldt{font-size:.6rem;color:rgba(255,255,255,.25)}
+.p4-new{width:100%;display:flex;align-items:center;gap:8px;position:relative}
+.p4-line{flex:1;height:1.5px;border-radius:2px;background:linear-gradient(90deg,transparent,rgba(179,136,255,.75),rgba(255,213,79,.65),transparent);transform:scaleX(0);transform-origin:center;animation:lineEx 3.5s ease-in-out infinite}
+@keyframes lineEx{0%,8%{transform:scaleX(0);opacity:0}40%,78%{transform:scaleX(1);opacity:1}95%,100%{transform:scaleX(1);opacity:.15}}
+.p4-txt{font-size:.62rem;color:rgba(255,255,255,.55);white-space:nowrap;animation:txtFade 3.5s ease-in-out infinite}
+@keyframes txtFade{0%,18%{opacity:0}42%,80%{opacity:1}95%,100%{opacity:.1}}
+.sp{position:absolute;width:4px;height:4px;border-radius:50%;animation:spFly 3.5s ease-in-out infinite}
+@keyframes spFly{0%,22%{transform:translate(0,0) scale(0);opacity:0}48%{transform:translate(var(--sx),var(--sy)) scale(1.2);opacity:1}80%,100%{transform:translate(calc(var(--sx)*2.2),calc(var(--sy)*2.2)) scale(0);opacity:0}}
+.p4-sub{font-size:.58rem;color:rgba(255,255,255,.18);text-align:center;animation:txtFade 3.5s ease-in-out infinite}
+
+/* ══════════════ ⑤ Shimmer ══════════════ */
+.p5-bubble{background:linear-gradient(140deg,rgba(156,39,176,.8),rgba(92,107,192,.74));border-radius:16px 16px 3px 16px;padding:12px 16px;font-size:.82rem;line-height:1.55;position:relative;overflow:hidden;border:1px solid rgba(179,136,255,.28);max-width:82%;box-shadow:0 4px 24px rgba(123,31,162,.32)}
+.p5-sh{position:absolute;top:0;left:-70%;width:42%;height:100%;background:linear-gradient(108deg,transparent 15%,rgba(255,255,255,.22) 50%,transparent 85%);animation:shim 3.8s ease-in-out infinite 1.5s}
+@keyframes shim{0%{left:-70%;opacity:0}8%{opacity:1}92%{opacity:1}100%{left:165%;opacity:0}}
+.p5-note{font-size:.6rem;color:rgba(255,255,255,.2);margin-top:10px;text-align:center}
+
+/* ══════════════ ⑥ ECG ══════════════ */
+.p6w{width:100%;display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 12px}
+.p6-bar{width:100%;display:flex;align-items:center;gap:8px}
+.p6-dot{width:9px;height:9px;border-radius:50%;background:linear-gradient(135deg,#ce93d8,#7986cb);flex-shrink:0}
+.p6-ecg{flex:1;height:22px;overflow:hidden;position:relative}
+.ecg-tr{position:absolute;top:0;left:0;width:200%;height:100%;animation:ecgRoll 1.6s linear infinite}
+.ecg-tr.offline{animation-play-state:paused;opacity:.25}
+@keyframes ecgRoll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.p6-controls{display:flex;align-items:center;gap:10px}
+.p6-status{font-size:.62rem;color:rgba(255,255,255,.25)}
+.p6-btn{font-size:.63rem;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:7px;padding:4px 11px;color:rgba(255,255,255,.45);cursor:pointer;transition:background .2s}
+.p6-btn:active{background:rgba(255,255,255,.14)}
+</style>
+</head>
+<body>
+
+<div class="ph">
+  <h1>BridgeIt — 视觉改进原型展示</h1>
+  <p>6 个动效概念 · 点击卡片内的元素可以交互</p>
+</div>
+
+<div class="grid">
+
+  <!-- ① Particle Trail -->
+  <div class="card">
+    <div class="cn">改进 ①</div>
+    <div class="ct">发送消息粒子拖尾</div>
+    <div class="demo" id="d1">
+      <div class="p1">
+        <div class="p1-bubble">你好！今天怎么样？</div>
+        <div class="p1-row">
+          <div class="p1-inp">输入消息...</div>
+          <button class="p1-btn" onclick="fireParticles(event)">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ② AI Scan -->
+  <div class="card">
+    <div class="cn">改进 ②</div>
+    <div class="ct">AI 卡片扫描入场</div>
+    <div class="demo">
+      <div class="p2w">
+        <div class="p2-card">
+          <div class="p2-scan"></div>
+          <div class="p2-hd">
+            <div class="p2-orb"></div>
+            <span class="p2-lbl reveal">✦ Bridge</span>
+          </div>
+          <div class="p2-body reveal">Joyce 想让你理解她的感受</div>
+          <div class="p2-adv reveal">你可以先静下来听她说完</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ Blob Response -->
+  <div class="card">
+    <div class="cn">改进 ③</div>
+    <div class="ct">背景随输入聚焦响应</div>
+    <div class="demo">
+      <div class="p3" id="p3" onclick="toggleBlob()">
+        <div class="p3-b1"></div>
+        <div class="p3-b2"></div>
+        <div class="p3-hint" id="p3hint">点击体验</div>
+        <div class="p3-inp" id="p3inp">输入消息...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ Topic Divider -->
+  <div class="card">
+    <div class="cn">改进 ④</div>
+    <div class="ct">话题分隔线升级</div>
+    <div class="demo">
+      <div class="p4">
+        <div class="p4-old">
+          <div class="p4-oldl"></div>
+          <div class="p4-oldt">当前样式</div>
+          <div class="p4-oldl"></div>
+        </div>
+        <div class="p4-new">
+          <div class="p4-line"></div>
+          <div class="p4-txt">✦ 新话题</div>
+          <div class="p4-line"></div>
+          <div class="sp" style="--sx:-32px;--sy:-13px;background:#ce93d8;left:50%;animation-delay:.05s"></div>
+          <div class="sp" style="--sx:28px;--sy:-16px;background:#FFD54F;left:50%;animation-delay:.15s"></div>
+          <div class="sp" style="--sx:-22px;--sy:12px;background:#9C27B0;left:50%;animation-delay:.1s"></div>
+          <div class="sp" style="--sx:38px;--sy:9px;background:#FFD54F;left:50%;animation-delay:.2s"></div>
+          <div class="sp" style="--sx:0px;--sy:-20px;background:#fff;left:50%;animation-delay:.08s"></div>
+        </div>
+        <div class="p4-sub">← 从中心向两侧展开，粒子飞散 →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ Shimmer -->
+  <div class="card">
+    <div class="cn">改进 ⑤</div>
+    <div class="ct">气泡 Shimmer 光泽</div>
+    <div class="demo" style="flex-direction:column;gap:8px">
+      <div style="font-size:.6rem;color:rgba(255,255,255,.2)">在线时（3.8s 循环）</div>
+      <div class="p5-bubble">
+        这是我发送的消息 ✨
+        <div class="p5-sh"></div>
+      </div>
+      <div class="p5-note">白色光泽从左向右扫过</div>
+    </div>
+  </div>
+
+  <!-- ⑥ ECG -->
+  <div class="card">
+    <div class="cn">改进 ⑥</div>
+    <div class="ct">连接线变心电图</div>
+    <div class="demo">
+      <div class="p6w">
+        <div class="p6-bar">
+          <div class="p6-dot"></div>
+          <div class="p6-ecg">
+            <svg class="ecg-tr" id="ecgTr" viewBox="0 0 240 22" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="eg" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stop-color="#ce93d8"/>
+                  <stop offset="50%" stop-color="#9C27B0"/>
+                  <stop offset="100%" stop-color="#FFD54F"/>
+                </linearGradient>
+              </defs>
+              <path id="ep1" d="M0,11 L14,11 Q17,8 20,11 L26,11 L28,13.5 L33,2 L37,15 L41,11 Q52,6.5 62,11 L120,11" stroke="url(#eg)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+              <path id="ep2" d="M120,11 L134,11 Q137,8 140,11 L146,11 L148,13.5 L153,2 L157,15 L161,11 Q172,6.5 182,11 L240,11" stroke="url(#eg)" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="p6-dot"></div>
+        </div>
+        <div class="p6-controls">
+          <div class="p6-status" id="ecgSt">在线 · ECG 流动中</div>
+          <button class="p6-btn" onclick="toggleECG()">切换离线</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── ① 粒子 ───────────────────────────────────────────────
+function fireParticles(e) {
+  const demo = document.getElementById('d1');
+  const btn = e.currentTarget;
+  const dRect = demo.getBoundingClientRect();
+  const bRect = btn.getBoundingClientRect();
+  const originX = bRect.left - dRect.left + bRect.width / 2;
+  const originY = bRect.top  - dRect.top  + bRect.height / 2;
+
+  const palette = ['#ce93d8','#FFD54F','#9C27B0','#7986cb','rgba(255,255,255,.85)'];
+  const offsets = [
+    [-55,-75],[-35,-85],[-70,-60],[-45,-90],[-20,-72],[-60,-50]
+  ];
+
+  offsets.forEach(([dx, dy], i) => {
+    const p = document.createElement('div');
+    p.className = 'ptcl';
+    p.style.cssText = `
+      left:${originX - 3}px; top:${originY - 3}px;
+      background:${palette[i % palette.length]};
+      --px:${dx}px; --py:${dy}px;
+      animation-delay:${i * 0.04}s;
+    `;
+    demo.appendChild(p);
+    setTimeout(() => p.remove(), 750);
+  });
+}
+
+// ── ③ Blob ───────────────────────────────────────────────
+let blobActive = false;
+function toggleBlob() {
+  blobActive = !blobActive;
+  document.getElementById('p3').classList.toggle('on', blobActive);
+  document.getElementById('p3inp').textContent = blobActive ? '正在输入内容...' : '输入消息...';
+  document.getElementById('p3hint').textContent = blobActive ? '再次点击还原' : '点击体验';
+}
+
+// ── ⑥ ECG ───────────────────────────────────────────────
+const ECG_ON  = 'M0,11 L14,11 Q17,8 20,11 L26,11 L28,13.5 L33,2 L37,15 L41,11 Q52,6.5 62,11 L120,11';
+const ECG_ON2 = 'M120,11 L134,11 Q137,8 140,11 L146,11 L148,13.5 L153,2 L157,15 L161,11 Q172,6.5 182,11 L240,11';
+const ECG_OFF  = 'M0,11 L120,11';
+const ECG_OFF2 = 'M120,11 L240,11';
+let ecgOnline = true;
+
+function toggleECG() {
+  ecgOnline = !ecgOnline;
+  const tr  = document.getElementById('ecgTr');
+  const p1  = document.getElementById('ep1');
+  const p2  = document.getElementById('ep2');
+  const st  = document.getElementById('ecgSt');
+  const btn = event.currentTarget;
+
+  if (ecgOnline) {
+    tr.classList.remove('offline');
+    p1.setAttribute('d', ECG_ON);
+    p2.setAttribute('d', ECG_ON2);
+    p1.setAttribute('stroke', 'url(#eg)');
+    p2.setAttribute('stroke', 'url(#eg)');
+    p1.setAttribute('stroke-dasharray', 'none');
+    p2.setAttribute('stroke-dasharray', 'none');
+    st.textContent = '在线 · ECG 流动中';
+    btn.textContent = '切换离线';
+  } else {
+    tr.classList.add('offline');
+    p1.setAttribute('d', ECG_OFF);
+    p2.setAttribute('d', ECG_OFF2);
+    p1.setAttribute('stroke', 'rgba(255,255,255,0.22)');
+    p2.setAttribute('stroke', 'rgba(255,255,255,0.22)');
+    p1.setAttribute('stroke-dasharray', '4 5');
+    p2.setAttribute('stroke-dasharray', '4 5');
+    st.textContent = '离线 · 静止';
+    btn.textContent = '切换在线';
+  }
+}
+</script>
+</body>
+</html>

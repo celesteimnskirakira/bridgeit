@@ -15,7 +15,7 @@
 
     /* ── Background blobs ── */
     .bg-wrap { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
-    .blob { position: absolute; border-radius: 50%; }
+    .blob { position: absolute; border-radius: 50%; transition: transform 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
     .blob-purple { width: 350px; height: 350px; top: -100px; left: -80px; background: radial-gradient(circle, rgba(123,31,162,0.42) 0%, transparent 68%); animation: blobFloat1 16s ease-in-out infinite; }
     .blob-yellow { width: 300px; height: 300px; bottom: 40px; right: -80px; background: radial-gradient(circle, rgba(255,179,0,0.32) 0%, transparent 68%); animation: blobFloat2 20s ease-in-out infinite; }
 
@@ -96,7 +96,14 @@
     .translation-line { display: block; }
 
     /* ── Bridge AI Card (gold) ── */
-    .bridge-card { margin: 8px 10px 12px; padding: 13px 15px; position: relative; z-index: 1; background: rgba(255,179,0,0.07); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,179,0,0.22); border-radius: 18px; box-shadow: 0 4px 28px rgba(255,179,0,0.08); animation: fadeUp 0.3s ease; }
+    .bridge-card { margin: 8px 10px 12px; padding: 13px 15px; position: relative; z-index: 1; background: rgba(255,179,0,0.07); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,179,0,0.22); border-radius: 18px; box-shadow: 0 4px 28px rgba(255,179,0,0.08); animation: fadeUp 0.3s ease; overflow: hidden; }
+    .bridge-card.scan-in { animation: none; }
+    @keyframes scanDown { 0%{top:0;opacity:1} 100%{top:100%;opacity:0} }
+    @keyframes scanReveal { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
+    .bridge-scan-line { position:absolute; left:0; right:0; height:2px; top:0; z-index:3; pointer-events:none;
+      background: linear-gradient(90deg, transparent 0%, rgba(255,213,79,0.9) 30%, rgba(255,255,255,0.65) 50%, rgba(255,213,79,0.9) 70%, transparent 100%);
+      box-shadow: 0 0 8px rgba(255,179,0,0.7); animation: scanDown 0.7s ease-in-out forwards; }
+    .bridge-card.scan-in .bridge-scan-content { animation: scanReveal 0.35s ease 0.68s both; }
     .bridge-top { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
     .bridge-orb { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; background: linear-gradient(135deg, #FFD54F, #FFA000); display: flex; align-items: center; justify-content: center; font-size: 0.72rem; box-shadow: 0 0 12px rgba(255,179,0,0.4); }
     .bridge-lbl { font-size: 0.63rem; font-weight: 700; color: #FFD54F; text-transform: uppercase; letter-spacing: 0.8px; }
@@ -113,8 +120,13 @@
 
     /* Topic break */
     .topic-break { display: flex; align-items: center; margin: 16px 0; gap: 10px; position: relative; z-index: 1; }
-    .topic-break-line { flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
+    .topic-break-line { flex: 1; height: 1px; background: linear-gradient(90deg, transparent, rgba(156,39,176,0.3), rgba(255,213,79,0.25), transparent); }
     .topic-break-label { font-size: 0.65rem; color: rgba(255,255,255,0.2); white-space: nowrap; padding: 0 4px; }
+    @keyframes tbExpand { from{transform:scaleX(0)} to{transform:scaleX(1)} }
+    @keyframes tbSpark { 0%{transform:translate(0,0) scale(1);opacity:1} 100%{transform:translate(var(--sx),var(--sy)) scale(0);opacity:0} }
+    .tb-animate .topic-break-line { transform-origin: center; animation: tbExpand 0.5s ease forwards; }
+    .tb-animate .topic-break-label { animation: fadeUp 0.4s ease 0.3s both; }
+    .tb-spark { position:absolute; width:4px; height:4px; border-radius:50%; background:rgba(255,213,79,0.9); animation:tbSpark 0.5s ease 0.15s forwards; pointer-events:none; }
 
     /* Thinking indicator */
     .thinking-row { display: flex; margin-bottom: 8px; padding-left: calc(50% + 10px); position: relative; z-index: 1; }
@@ -311,6 +323,21 @@ function loadMineColor() {
 }
 loadMineColor();
 
+// Blob focus response
+(function() {
+  const bp = document.querySelector('.blob-purple');
+  const by = document.querySelector('.blob-yellow');
+  const inp = document.getElementById('chat-input');
+  inp.addEventListener('focus', () => {
+    if (bp) bp.style.transform = 'translate(70px, 55vh)';
+    if (by) by.style.transform = 'translate(-70px, -30px)';
+  });
+  inp.addEventListener('blur', () => {
+    if (bp) bp.style.transform = '';
+    if (by) by.style.transform = '';
+  });
+})();
+
 function resetMineColor() {
   const hex = '#9C27B0';
   const el = document.getElementById('mine-color-input');
@@ -430,7 +457,7 @@ socket.on('ai-analysis', analysis => {
   if (analysis.roomId !== roomId) return;
   hideThinking();
   attachTranslations(analysis);
-  if (analysis.receiverId === myId) renderAICard(analysis);
+  if (analysis.receiverId === myId) renderAICard(analysis, true);
   if (analysis.senderId === myId) renderBridgeStatus(analysis);
 });
 socket.on('ai-error', ({ roomId: rid }) => {
@@ -535,8 +562,16 @@ function renderTopicBreak(animate) {
   const wrap = document.getElementById('chat-wrap');
   const div = document.createElement('div');
   div.className = 'topic-break';
-  if (!animate) div.style.animation = 'none';
-  div.innerHTML = `<div class="topic-break-line"></div><div class="topic-break-label">${escHtml(T('new_topic_label'))}</div><div class="topic-break-line"></div>`;
+  if (animate) {
+    div.classList.add('tb-animate');
+    [[-42,-20],[0,-28],[42,-20],[-20,-6],[20,-6],[-12,12],[12,12]].forEach(([sx,sy]) => {
+      const s = document.createElement('div');
+      s.className = 'tb-spark';
+      s.style.cssText = `--sx:${sx}px;--sy:${sy}px;left:50%;top:50%;margin:-2px;`;
+      div.appendChild(s);
+    });
+  }
+  div.insertAdjacentHTML('beforeend', `<div class="topic-break-line"></div><div class="topic-break-label">${escHtml(T('new_topic_label'))}</div><div class="topic-break-line"></div>`);
   wrap.appendChild(div);
   if (animate) scrollToBottom();
 }
@@ -605,7 +640,7 @@ function openJournal() {
   window.location.href = '/journal.html?room=' + encodeURIComponent(roomId);
 }
 
-function renderAICard(analysis) {
+function renderAICard(analysis, animate) {
   if (document.getElementById('ai-body-' + analysis.messageId)) return;
   const bubble = document.getElementById('msg-' + analysis.messageId);
   if (!bubble) return;
@@ -639,8 +674,19 @@ function renderAICard(analysis) {
 
   const card = document.createElement('div');
   card.className = 'bridge-card';
+  if (animate) card.classList.add('scan-in');
   card.id = 'ai-body-' + analysis.messageId;
-  card.innerHTML = bodyHtml;
+  if (animate) {
+    const sl = document.createElement('div');
+    sl.className = 'bridge-scan-line';
+    card.appendChild(sl);
+    const sc = document.createElement('div');
+    sc.className = 'bridge-scan-content';
+    sc.innerHTML = bodyHtml;
+    card.appendChild(sc);
+  } else {
+    card.innerHTML = bodyHtml;
+  }
   row.insertAdjacentElement('afterend', card);
 }
 
