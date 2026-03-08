@@ -41,6 +41,10 @@ const I18N = {
     partner_bubble_color: '对方气泡颜色',
     partner_text_color: '对方文字颜色',
     reset_default: '恢复默认',
+    only_you: '仅你可见',
+    bridge_built: 'Bridge 已建立',
+    conversations: '对话',
+    mine_bubble_color: '我的气泡颜色',
   },
   en: {
     slogan: 'Bridge Understanding',
@@ -79,6 +83,10 @@ const I18N = {
     partner_bubble_color: 'Partner Bubble Color',
     partner_text_color: 'Partner Text Color',
     reset_default: 'Reset to Default',
+    only_you: 'Only you can see this',
+    bridge_built: 'Bridge built',
+    conversations: 'Conversations',
+    mine_bubble_color: 'My Bubble Color',
   },
   es: {
     slogan: 'Construye comprensión',
@@ -117,6 +125,10 @@ const I18N = {
     partner_bubble_color: 'Color de burbuja del otro',
     partner_text_color: 'Color de texto del otro',
     reset_default: 'Restablecer',
+    only_you: 'Solo tú lo ves',
+    bridge_built: 'Bridge construido',
+    conversations: 'Conversaciones',
+    mine_bubble_color: 'Color de mi burbuja',
   },
   ru: {
     slogan: 'Строй взаимопонимание',
@@ -155,6 +167,10 @@ const I18N = {
     partner_bubble_color: 'Цвет пузыря собеседника',
     partner_text_color: 'Цвет текста собеседника',
     reset_default: 'Сбросить',
+    only_you: 'Видите только вы',
+    bridge_built: 'Мост построен',
+    conversations: 'Разговоры',
+    mine_bubble_color: 'Цвет моего пузыря',
   },
   fr: {
     slogan: 'Construire la compréhension',
@@ -193,6 +209,10 @@ const I18N = {
     partner_bubble_color: 'Couleur de bulle du partenaire',
     partner_text_color: 'Couleur du texte du partenaire',
     reset_default: 'Réinitialiser',
+    only_you: 'Visible uniquement par vous',
+    bridge_built: 'Bridge construit',
+    conversations: 'Conversations',
+    mine_bubble_color: 'Couleur de ma bulle',
   },
 };
 

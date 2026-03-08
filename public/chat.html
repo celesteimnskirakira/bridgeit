@@ -93,7 +93,9 @@
     .msg-time { font-size: 0.65rem; color: rgba(255,255,255,0.3); margin-bottom: 3px; flex-shrink: 0; align-self: flex-end; }
     .translation-text { margin-top: 6px; padding-top: 5px; border-top: 1px solid rgba(255,255,255,0.12); font-size: 0.75rem; color: rgba(255,255,255,0.5); line-height: 1.4; }
     .mine .translation-text { border-top-color: rgba(179,136,255,0.2); }
-    .translation-line { display: block; }
+    .translation-line { display: block; margin-top: 3px; }
+    .translation-line:first-child { margin-top: 0; }
+    .tl-tag { font-size: 0.6rem; opacity: 0.5; margin-right: 4px; letter-spacing: 0.3px; vertical-align: middle; }
 
     /* ── Bridge AI Card (gold) ── */
     .bridge-card { margin: 8px 10px 12px; padding: 13px 15px; position: relative; z-index: 1; background: rgba(255,179,0,0.07); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255,179,0,0.22); border-radius: 18px; box-shadow: 0 4px 28px rgba(255,179,0,0.08); animation: fadeUp 0.3s ease; overflow: hidden; }
@@ -239,7 +241,7 @@
     <div class="drawer-handle"></div>
     <h3 data-i18n="chat_settings">聊天设置</h3>
     <div id="translate-drawer-content"></div>
-    <div class="tl-section-label" style="margin-top:20px">我的气泡颜色</div>
+    <div class="tl-section-label" data-i18n="mine_bubble_color" style="margin-top:20px">我的气泡颜色</div>
     <div class="color-row">
       <input type="color" id="mine-color-input" value="#9C27B0"
         oninput="applyMineColor(this.value)">
@@ -257,7 +259,7 @@
   </div>
 </div>
 
-<script src="/js/i18n.js?v=3"></script>
+<script src="/js/i18n.js?v=4"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const LANGS = [
@@ -267,6 +269,7 @@ const LANGS = [
   { code: 'ru', label: '🇷🇺 Русский' },
   { code: 'fr', label: '🇫🇷 Français' },
 ];
+const LANG_FLAGS = { zh: '🇨🇳', en: '🇺🇸', es: '🇪🇸', ru: '🇷🇺', fr: '🇫🇷' };
 
 const token = localStorage.getItem('bridgeit_token');
 const roomId = localStorage.getItem('bridgeit_current_room');
@@ -542,7 +545,7 @@ function renderItem(msg, animate) {
       : Object.keys(translations);
     const lines = orderedLangs
       .filter(lang => translations[lang] && translations[lang] !== msg.text)
-      .map(lang => `<div class="translation-line">${escHtml(translations[lang])}</div>`);
+      .map(lang => `<div class="translation-line"><span class="tl-tag">${LANG_FLAGS[lang] || lang.toUpperCase()}</span>${escHtml(translations[lang])}</div>`);
     if (lines.length) html += `<div class="translation-text">${lines.join('')}</div>`;
   }
 
@@ -587,7 +590,7 @@ function attachTranslations(analysis) {
     : Object.keys(translations);
   const lines = orderedLangs
     .filter(lang => translations[lang] && translations[lang] !== original)
-    .map(lang => `<div class="translation-line">${escHtml(translations[lang])}</div>`);
+    .map(lang => `<div class="translation-line"><span class="tl-tag">${LANG_FLAGS[lang] || lang.toUpperCase()}</span>${escHtml(translations[lang])}</div>`);
   if (lines.length) {
     const div = document.createElement('div');
     div.className = 'translation-text';
@@ -606,7 +609,7 @@ function renderBridgeStatus(analysis) {
   const statusEl = document.createElement('div');
   statusEl.className = 'bridge-status';
   const insight = (analysis.insight || '').slice(0, 30);
-  statusEl.textContent = '💡 Bridge 已建立 · ' + insight + (analysis.insight?.length > 30 ? '…' : '');
+  statusEl.textContent = '💡 ' + T('bridge_built') + ' · ' + insight + (analysis.insight?.length > 30 ? '…' : '');
   row.insertAdjacentElement('afterend', statusEl);
   // fade in
   requestAnimationFrame(() => {
@@ -652,7 +655,7 @@ function renderAICard(analysis, animate) {
       <div class="bridge-orb">💡</div>
       <div>
         <div class="bridge-lbl">Bridge AI</div>
-        <div class="bridge-sub">仅你可见</div>
+        <div class="bridge-sub">${escHtml(T('only_you'))}</div>
       </div>
     </div>
     <div class="bridge-text">${escHtml(analysis.insight || '')}</div>`;

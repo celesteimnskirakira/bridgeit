@@ -170,7 +170,7 @@
   </div>
 </div>
 
-<script src="/js/i18n.js?v=3"></script>
+<script src="/js/i18n.js?v=4"></script>
 <script>
   const token = localStorage.getItem('bridgeit_token');
   const user = JSON.parse(localStorage.getItem('bridgeit_user') || '{}');
@@ -233,7 +233,7 @@
     const myInitial = (user.nickname || user.contactId || '?')[0].toUpperCase();
     // Show section title
     document.getElementById('section-title-wrap').innerHTML =
-      `<div class="section-title">对话</div>`;
+      `<div class="section-title">${escHtml(T('conversations'))}</div>`;
     list.innerHTML = rooms.map(room => {
       const name = room.partner?.nickname || '...';
       const theirInitial = name[0].toUpperCase();
@@ -325,7 +325,7 @@
     navigator.clipboard.writeText(user.contactId || '').then(() => {
       const idSpan = document.getElementById('settings-contact-id');
       const orig = idSpan.textContent;
-      idSpan.textContent = '已复制 ✓';
+      idSpan.textContent = T('copied');
       setTimeout(() => { idSpan.textContent = orig; }, 1500);
     }).catch(() => {});
   }
